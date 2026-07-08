@@ -10,6 +10,7 @@ import type { Session } from "@supabase/supabase-js";
 import TyresDropdown from "./TyresDropdown";
 import AuthModal from "@/components/storefront/account/AuthModal";
 import GlobalSearchBar from "./GlobalSearchBar";
+import MobileMenu from "./MobileMenu";
 
 const navLinks = [
   
@@ -26,6 +27,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
   const [tyresOpen, setTyresOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "register">("login");
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   const tyresRef = useRef<HTMLDivElement>(null);
@@ -69,6 +71,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
       <div className="border-b border-white/10 bg-black/30 backdrop-blur-md">
         <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-5 lg:gap-10">
+            <MobileMenu session={session} onSignOut={handleSignOut} onOpenAuth={openAuthModal} />
             <nav className="hidden items-center gap-8 lg:flex">
               {/* Shop Tyres — mega dropdown */}
               <div ref={tyresRef} className="relative">
@@ -200,11 +203,22 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 </span>
               )}
             </button>
-            <Button size="icon" variant="ghost" aria-label="Search" className="text-white hover:bg-transparent hover:text-primary lg:hidden">
+            <Button
+              size="icon"
+              variant="ghost"
+              aria-label="Search"
+              onClick={() => setMobileSearchOpen(o => !o)}
+              className={`hover:bg-transparent hover:text-primary lg:hidden ${mobileSearchOpen ? "text-primary" : "text-white"}`}
+            >
               <Search className="h-5 w-5" />
             </Button>
           </div>
         </div>
+        {mobileSearchOpen && (
+          <div className="border-t border-white/10 px-4 py-3 lg:hidden">
+            <GlobalSearchBar fullWidth autoFocus />
+          </div>
+        )}
       </div>
       <AuthModal 
         open={authModalOpen} 

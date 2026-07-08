@@ -87,7 +87,7 @@ function HowItWorksStep({
         </div>
       </div>
 
-      <h2 className="text-xl font-bold text-center text-zinc-900 mb-6">How it works</h2>
+      <h2 className="font-oswald text-xl font-bold text-center text-zinc-900 uppercase tracking-wide mb-6">How it works</h2>
 
       <div className="space-y-0 mb-8">
         {[
@@ -126,7 +126,7 @@ function HowItWorksStep({
 
       <div className="mt-auto">
         <p className="text-sm font-semibold text-zinc-900 text-center mb-3">Find your nearest fitting partner</p>
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <input
             type="text"
             inputMode="numeric"
@@ -135,13 +135,13 @@ function HowItWorksStep({
             value={postcode}
             onChange={e => setPostcode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={e => e.key === 'Enter' && valid && onContinue(postcode)}
-            className="flex-1 rounded-lg border-2 border-zinc-300 focus:border-primary px-4 py-2.5 text-sm focus:outline-none"
+            className="min-w-0 flex-1 rounded-lg border-2 border-zinc-300 focus:border-primary px-4 py-2.5 text-sm focus:outline-none"
           />
           <button
             type="button"
             disabled={!valid}
             onClick={() => onContinue(postcode)}
-            className="rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="shrink-0 rounded-lg bg-primary px-5 py-2.5 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             Continue
           </button>
@@ -215,11 +215,11 @@ function StationsStep({
         <div className="flex items-center gap-2 mb-4">
           <div className="h-5 w-48 bg-zinc-100 rounded animate-pulse" />
         </div>
-        <div className="flex gap-4 flex-1 min-h-0">
-          <div className="w-1/2 space-y-3 overflow-y-auto">
+        <div className="flex flex-col gap-4 flex-1 min-h-0 sm:flex-row">
+          <div className="space-y-3 overflow-y-auto sm:w-1/2">
             {[1,2,3].map(i => <div key={i} className="h-24 rounded-xl bg-zinc-100 animate-pulse" />)}
           </div>
-          <div className="w-1/2 rounded-xl bg-zinc-100 animate-pulse" />
+          <div className="h-40 rounded-xl bg-zinc-100 animate-pulse sm:h-auto sm:w-1/2" />
         </div>
       </div>
     )
@@ -322,16 +322,16 @@ function StationsStep({
       </div>
 
       {/* Two-panel layout */}
-      <div className="flex gap-4 flex-1 min-h-[320px]">
+      <div className="flex flex-col gap-4 flex-1 min-h-0 sm:flex-row sm:min-h-[320px]">
         {/* List */}
-        <div className="w-[48%] overflow-y-auto space-y-2 pr-1">
+        <div className="overflow-y-auto space-y-2 pr-1 sm:w-[48%]">
           {sorted.map(c => (
             <button
               key={c.fitment_centre_id}
               ref={el => { listRefs.current[c.fitment_centre_id] = el }}
               type="button"
               onClick={() => onSelect(c)}
-              className={`w-full text-left rounded-xl border-2 p-3 transition-colors ${
+              className={`w-full text-left rounded-2xl border-2 p-3 transition-colors ${
                 highlighted === c.fitment_centre_id
                   ? 'border-primary bg-primary/5'
                   : 'border-zinc-200 hover:border-zinc-400'
@@ -369,7 +369,7 @@ function StationsStep({
         </div>
 
         {/* Map */}
-        <div className="flex-1 min-h-[320px] rounded-xl overflow-hidden border border-zinc-200">
+        <div className="h-56 shrink-0 rounded-2xl overflow-hidden border border-zinc-200 sm:h-auto sm:flex-1 sm:min-h-[320px]">
           {isLoaded ? (
             <GoogleMap
               mapContainerStyle={MAP_CONTAINER}
@@ -459,7 +459,7 @@ function StationDetailStep({
         <ChevronLeft className="w-4 h-4" /> Show all
       </button>
 
-      <p className="text-base font-bold text-zinc-900 mb-0.5">
+      <p className="font-oswald text-lg font-bold text-zinc-900 uppercase tracking-wide mb-0.5">
         {centre.mobile_fitting_available ? 'Mobile Fitting Partner' : centre.business_name}
       </p>
       {centre.addresses && !centre.mobile_fitting_available && (
@@ -473,8 +473,8 @@ function StationDetailStep({
       )}
 
       {/* Pricing details */}
-      <div className="rounded-xl border border-zinc-200 divide-y divide-zinc-100 mb-4">
-        <div className="px-4 py-2.5 bg-zinc-50 rounded-t-xl">
+      <div className="rounded-2xl border border-zinc-200 divide-y divide-zinc-100 mb-4">
+        <div className="px-4 py-2.5 bg-zinc-50 rounded-t-2xl">
           <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide">Pricing details</p>
         </div>
 
@@ -700,17 +700,17 @@ export default function FitterSelectionModal({ open, onClose, tyreQty, cartSubto
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div
-          className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col"
+          className="relative bg-white rounded-3xl shadow-2xl w-full max-w-3xl flex flex-col"
           style={{ maxHeight: 'min(90vh, 680px)' }}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
-            <h2 className="text-sm font-semibold text-zinc-800">{stepTitles[step]}</h2>
+            <h2 className="font-oswald text-sm font-bold text-zinc-900 uppercase tracking-wide">{stepTitles[step]}</h2>
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg p-1.5 text-zinc-400 hover:text-zinc-700 hover:!bg-zinc-100 transition-colors"
+              className="rounded-full p-1.5 text-zinc-400 hover:text-zinc-700 hover:!bg-zinc-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>

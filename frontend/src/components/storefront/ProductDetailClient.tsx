@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, ChevronLeft, ImageOff, Wrench } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
 
@@ -109,12 +109,17 @@ function SpecRow({ label, value }: { label: string; value?: string | number | nu
 export default function ProductDetailClient({ product }: { product: Product }) {
   const [activeImg, setActiveImg] = useState(0)
   const [fitterOpen, setFitterOpen] = useState(false)
+  const [qty, setQty] = useState(1)
   const { addItem, openCart } = useCartStore()
 
   const images = [
     ...(product.variant_images ?? []),
     ...(product.gallery_images ?? []),
   ].filter(Boolean)
+
+  const displayPrice = product.promo_price != null && product.promo_price < (product.retail_price ?? 0)
+    ? product.promo_price
+    : product.retail_price
 
   async function handleAddToCart() {
     const result = await addItem({
@@ -125,7 +130,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       price: product.retail_price ?? 0,
       image: images[0]?.startsWith('http') ? images[0] : null,
       stock: product.total_available_stock,
-    }, 1)
+    }, qty)
     if (result.error === 'out_of_stock') {
       alert('Sorry, this item is out of stock.')
       return
@@ -158,8 +163,24 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Gallery */}
-        <div className="space-y-3">
-          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden">
+        <div className="flex flex-col-reverse sm:flex-row gap-3">
+          {images.length > 1 && (
+            <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:max-h-[420px] pb-1 sm:pb-0 sm:w-16 shrink-0">
+              {images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveImg(i)}
+                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                    i === activeImg ? 'border-primary' : 'border-transparent'
+                  }`}
+                >
+                  <Image src={img} alt="" width={64} height={64} className="w-full h-full object-contain p-1" />
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden flex-1">
             {images.length > 0 && (images[activeImg]?.startsWith('http') || images[activeImg]?.startsWith('/')) ? (
               <Image
                 src={images[activeImg]}
@@ -180,22 +201,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
           </div>
-          {images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveImg(i)}
-                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                    i === activeImg ? 'border-primary' : 'border-transparent'
-                  }`}
-                >
-                  <Image src={img} alt="" width={64} height={64} className="w-full h-full object-contain p-1" />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* Info */}
@@ -251,6 +256,35 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               )}
               <StockBadge stock={product.total_available_stock} />
             </div>
+
+            {/* Quantity */}
+            <div>
+              <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Quantity</p>
+              <div className="flex gap-2">
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    disabled={n > product.total_available_stock}
+                    onClick={() => setQty(n)}
+                    className={`w-10 h-10 rounded-lg border-2 text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                      qty === n ? 'border-primary bg-primary text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-primary'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Informational only — no real Afterpay/Zip integration exists */}
+            {displayPrice != null && (
+              <p className="text-xs text-zinc-500">
+                or 4 payments of <span className="font-semibold text-zinc-700">${(displayPrice / 4).toFixed(2)}</span> with{' '}
+                <span className="font-semibold">Afterpay</span> or <span className="font-semibold">Zip</span>
+              </p>
+            )}
+
             <button
               type="button"
               onClick={handleAddToCart}
@@ -268,6 +302,18 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <Wrench className="w-4 h-4" />
               Choose a Fitter
             </button>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
+                <Truck className="w-3.5 h-3.5" /> Free Delivery
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
+                <Wrench className="w-3.5 h-3.5" /> Fitting Available
+              </span>
+              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
+                <RotateCcw className="w-3.5 h-3.5" /> 30-Day Returns
+              </span>
+            </div>
           </div>
 
           {/* Size selector */}
@@ -314,7 +360,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       <FitterSelectionModal
         open={fitterOpen}
         onClose={() => setFitterOpen(false)}
-        tyreQty={1}
+        tyreQty={qty}
         cartSubtotal={product.retail_price ?? 0}
       />
     </div>

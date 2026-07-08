@@ -17,6 +17,8 @@ export async function searchTyres(
     p_xl:        filters.xl        ?? null,
     p_speed:     filters.speed     ?? null,
     p_app_type:  filters.app_type  ?? null,
+    p_price_min: filters.price_min ?? null,
+    p_price_max: filters.price_max ?? null,
     p_sort:      filters.sort      ?? 'updated_at_desc',
     p_page:     filters.page     ?? 1,
     p_limit:    24,
@@ -45,5 +47,5 @@ export async function getTyreFacets(
 
   if (error) throw new Error(error.message)
 
-  return (data ?? { widths: [], profiles: [], rim_sizes: [], brands: [] }) as TyreFacets
+  return (data ?? { widths: [], profiles: [], rim_sizes: [], brands: [], price_range: { min: null, max: null } }) as TyreFacets
 }

@@ -125,7 +125,7 @@ export default function FitterHeader({ centre, userEmail }: Props) {
 
   async function handleSignOut() {
     await createClient().auth.signOut()
-    window.location.replace('/login')
+    router.push('/')
   }
 
   return (

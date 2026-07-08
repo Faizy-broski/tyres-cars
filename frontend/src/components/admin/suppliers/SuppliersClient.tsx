@@ -49,24 +49,44 @@ function SupplierRowActions({
   onDelete:    () => void
   onUploadCsv: () => void
 }) {
-  const router          = useRouter()
-  const [open, setOpen] = useState(false)
-  const ref             = useRef<HTMLDivElement>(null)
+  const router                = useRouter()
+  const [open, setOpen]       = useState(false)
+  const [coords, setCoords]   = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const btnRef                = useRef<HTMLButtonElement>(null)
+  const menuRef               = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current  && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false)
     }
+    function onScroll() { setOpen(false) }
     document.addEventListener('mousedown', onDown)
-    return () => document.removeEventListener('mousedown', onDown)
+    window.addEventListener('scroll', onScroll, true)
+    return () => {
+      document.removeEventListener('mousedown', onDown)
+      window.removeEventListener('scroll', onScroll, true)
+    }
   }, [open])
 
+  function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setCoords({ top: r.bottom + window.scrollY + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(o => !o)
+  }
+
   return (
-    <div ref={ref} className="relative flex justify-end">
+    <div className="flex justify-end">
       <button
+        ref={btnRef}
         type="button"
-        onClick={e => { e.stopPropagation(); setOpen(o => !o) }}
+        onClick={handleOpen}
         className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900 transition-colors"
       >
         Actions
@@ -76,7 +96,10 @@ function SupplierRowActions({
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-20 w-40 rounded-xl border border-zinc-200 bg-white py-1 shadow-xl overflow-hidden">
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: coords.top, right: coords.right, zIndex: 9999 }}
+          className="w-40 rounded-xl border border-zinc-200 bg-white py-1 shadow-xl overflow-hidden">
           <button
             type="button"
             onClick={() => { setOpen(false); router.push(`/admin/suppliers/${supplier.supplier_id}`) }}

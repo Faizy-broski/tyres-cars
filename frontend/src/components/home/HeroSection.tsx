@@ -120,14 +120,14 @@ function TriggerField({
             : "cursor-pointer border-gray-300/80 bg-white hover:border-gray-400/90 hover:bg-gray-50/70 active:scale-[0.99]",
       )}
     >
-      <div className="flex items-center justify-between px-6 pb-4 pt-5">
+      <div className="flex items-center justify-between px-4 pb-3 pt-3.5 sm:px-6 sm:pb-4 sm:pt-5">
         <div className="min-w-0 flex-1">
-          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.32em] text-black/80">
+          <p className="mb-1 text-[9px] font-black uppercase tracking-[0.24em] text-black/80 sm:mb-2 sm:text-[11px] sm:tracking-[0.32em]">
             {label}
           </p>
           <p
             className={cn(
-              "truncate text-[17px] font-semibold",
+              "truncate text-sm font-semibold sm:text-[17px]",
               value ? "text-zinc-900" : "text-zinc-800",
             )}
           >
@@ -476,14 +476,14 @@ export default function HeroSection() {
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="relative overflow-hidden rounded-[34px] border border-black/8 bg-[#F8F4EA] shadow-[0_20px_80px_rgba(0,0,0,0.35)] backdrop-blur-2xl"
+          className="relative overflow-hidden rounded-[20px] border border-black/8 bg-[#F8F4EA] shadow-[0_12px_40px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:rounded-[34px] sm:shadow-[0_20px_80px_rgba(0,0,0,0.35)]"
         >
           {/* Tab switcher */}
-          <div className="grid grid-cols-2 bg-[#EFEBE2] p-2">
+          <div className="grid grid-cols-2 bg-[#EFEBE2] p-1.5 sm:p-2">
             <button
               onClick={() => handleTabSwitch("size")}
               className={cn(
-                "relative h-12 rounded-full text-sm font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
+                "relative h-10 rounded-full text-xs font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
                 activeTab === "size"
                   ? "bg-[#d9a407] text-white shadow-lg"
                   : "text-gray-600 hover:text-black",
@@ -494,7 +494,7 @@ export default function HeroSection() {
             <button
               onClick={() => handleTabSwitch("vehicle")}
               className={cn(
-                "relative h-12 rounded-full text-sm font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
+                "relative h-10 rounded-full text-xs font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
                 activeTab === "vehicle"
                   ? "bg-[#d9a407] text-white shadow-lg"
                   : "text-gray-600 hover:text-black",
@@ -513,7 +513,7 @@ export default function HeroSection() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25 }}
-                className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_220px]"
+                className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_220px]"
               >
                 <TriggerField
                   label="Make"
@@ -547,7 +547,7 @@ export default function HeroSection() {
                   onClick={handleSearch}
                   disabled={!vehicleComplete || searching}
                   className={cn(
-                    "h-14 w-full rounded-[26px] text-base font-bold transition-all duration-300 sm:col-span-2 sm:h-full sm:min-h-[96px] sm:text-lg lg:col-span-1 lg:w-auto",
+                    "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
                     vehicleComplete && !searching
                       ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
                       : "cursor-not-allowed bg-gray-300 text-black",
@@ -568,7 +568,7 @@ export default function HeroSection() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
                 transition={{ duration: 0.25 }}
-                className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_220px]"
+                className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_220px]"
               >
                 <TriggerField
                   label="Width"
@@ -595,7 +595,7 @@ export default function HeroSection() {
                   onClick={handleSearch}
                   disabled={!sizeComplete}
                   className={cn(
-                    "h-14 w-full rounded-[26px] text-base font-bold transition-all duration-300 sm:col-span-2 sm:h-full sm:min-h-[96px] sm:text-lg lg:col-span-1 lg:w-auto",
+                    "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
                     sizeComplete
                       ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
                       : "cursor-not-allowed bg-gray-300 text-black",

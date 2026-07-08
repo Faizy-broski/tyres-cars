@@ -14,10 +14,15 @@ export default function StorefrontFooter() {
             </div>
             <p className="text-xs text-zinc-500">Premium tyres and autoparts — shop, compare, and book fitting online.</p>
           </div>
-          <nav className="flex flex-wrap gap-x-6 gap-y-2 text-xs text-zinc-500">
-            <Link href="/tyres"             className="hover:text-zinc-800">Shop Tyres</Link>
-            <Link href="/fitter/onboarding" className="hover:text-zinc-800">Become a Fitter</Link>
-            <Link href="/account"           className="hover:text-zinc-800">My Account</Link>
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-zinc-500">
+            <Link href="/tyres"   className="hover:text-zinc-800">Shop Tyres</Link>
+            <Link href="/account" className="hover:text-zinc-800">My Account</Link>
+            <Link
+              href="/fitter/onboarding"
+              className="rounded-full bg-primary px-4 py-1.5 font-semibold text-zinc-900 hover:brightness-95"
+            >
+              Become a Fitter
+            </Link>
           </nav>
         </div>
         <p className="mt-8 text-xs text-zinc-400">© {new Date().getFullYear()} Tyre Vault. All rights reserved.</p>

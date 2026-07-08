@@ -1277,6 +1277,31 @@ export async function deleteBrand(id: string) {
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
 
+const PATTERNS_META_CACHE_KEY = 'admin:patterns-meta'
+
+export async function listPatternsForMeta(): Promise<{ pattern_id: string; brand_id: string; pattern_name: string }[]> {
+  const cached = await redis?.get<{ pattern_id: string; brand_id: string; pattern_name: string }[]>(PATTERNS_META_CACHE_KEY)
+    ?? getMetaCache<{ pattern_id: string; brand_id: string; pattern_name: string }[]>(PATTERNS_META_CACHE_KEY)
+  if (cached) return cached
+
+  const { data, error } = await supabase
+    .from('patterns')
+    .select('pattern_id, brand_id, pattern_name')
+    .eq('is_active', true)
+    .order('pattern_name', { ascending: true })
+    .limit(1000)
+  if (error) throw error
+  const result = data ?? []
+  await redis?.set(PATTERNS_META_CACHE_KEY, result, { ex: TTL.SUPPLIER_MAP })
+  setMetaCache(PATTERNS_META_CACHE_KEY, result)
+  return result
+}
+
+function bustPatternsMetaCache() {
+  metaCache.delete(PATTERNS_META_CACHE_KEY)
+  redis?.del(PATTERNS_META_CACHE_KEY).catch(() => null)
+}
+
 export async function listPatterns(params: { page: number; limit: number; search?: string; brandId?: string; appType?: string }) {
   const { page, limit, search, brandId, appType } = params
   const selectCols = 'pattern_id, brand_id, pattern_name, pattern_slug, application_type, season_type, terrain_type, is_active, show_on_website, created_at'
@@ -1343,6 +1368,7 @@ export async function createPattern(payload: PatternPayload) {
   if (ids.length > 0) {
     await supabase.from('pattern_categories').insert(ids.map(cid => ({ pattern_id: data.pattern_id, category_id: cid })))
   }
+  bustPatternsMetaCache()
   return data
 }
 
@@ -1361,6 +1387,7 @@ export async function updatePattern(patternId: string, payload: Partial<PatternP
       await supabase.from('pattern_categories').insert(ids.map(cid => ({ pattern_id: patternId, category_id: cid })))
     }
   }
+  bustPatternsMetaCache()
 }
 
 export async function deletePattern(patternId: string) {
@@ -1369,6 +1396,7 @@ export async function deletePattern(patternId: string) {
     .delete()
     .eq('pattern_id', patternId)
   if (error) throw error
+  bustPatternsMetaCache()
 }
 
 export async function listCollections() {

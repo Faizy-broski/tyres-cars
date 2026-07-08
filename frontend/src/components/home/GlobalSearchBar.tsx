@@ -5,9 +5,15 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Search, Loader2 } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 import type { TyreSku } from '@/lib/supabase/search.types'
 
-export default function GlobalSearchBar() {
+interface Props {
+  fullWidth?: boolean
+  autoFocus?: boolean
+}
+
+export default function GlobalSearchBar({ fullWidth, autoFocus }: Props = {}) {
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<TyreSku[]>([])
@@ -22,9 +28,15 @@ export default function GlobalSearchBar() {
   const search = useCallback(async (q: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/search/tyres?q=${encodeURIComponent(q)}&limit=6`)
-      const json = await res.json()
-      setResults(json.results ?? [])
+      const supabase = createClient()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any).rpc('search_tyres', {
+        p_q: q,
+        p_page: 1,
+        p_limit: 6,
+      })
+      if (error) throw error
+      setResults((data ?? []) as TyreSku[])
       setOpen(true)
     } catch {
       setResults([])
@@ -115,11 +127,12 @@ export default function GlobalSearchBar() {
         onFocus={() => { if (results.length > 0) setOpen(true) }}
         placeholder="Search tyres, brand or SKU..."
         autoComplete="off"
-        className="h-10 w-64 rounded-full border border-white/15 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-primary transition-all"
+        autoFocus={autoFocus}
+        className={`h-10 rounded-full border border-white/15 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-primary transition-all ${fullWidth ? 'w-full' : 'w-64'}`}
       />
 
       {open && (results.length > 0 || loading) && (
-        <div className="absolute top-full right-0 mt-2 w-80 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl z-50 overflow-hidden">
+        <div className={`absolute top-full mt-2 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl z-50 overflow-hidden ${fullWidth ? 'left-0 right-0' : 'right-0 w-80'}`}>
           {results.length === 0 && loading ? (
             <div className="px-4 py-6 text-center text-sm text-zinc-500">Searching…</div>
           ) : (
@@ -178,7 +191,7 @@ export default function GlobalSearchBar() {
       )}
 
       {open && results.length === 0 && !loading && query.trim().length >= 2 && (
-        <div className="absolute top-full right-0 mt-2 w-80 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl z-50 px-4 py-6 text-center text-sm text-zinc-500">
+        <div className={`absolute top-full mt-2 rounded-xl border border-white/10 bg-zinc-900 shadow-2xl z-50 px-4 py-6 text-center text-sm text-zinc-500 ${fullWidth ? 'left-0 right-0' : 'right-0 w-80'}`}>
           No results for &quot;{query}&quot;
         </div>
       )}

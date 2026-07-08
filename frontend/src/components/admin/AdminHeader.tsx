@@ -256,7 +256,7 @@ export default function AdminHeader({ userEmail, onMenuToggle }: Props) {
 
   async function handleSignOut() {
     await createClient().auth.signOut()
-    window.location.replace('/login')
+    router.push('/')
   }
 
   return (

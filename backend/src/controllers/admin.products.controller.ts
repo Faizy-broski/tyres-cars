@@ -207,13 +207,15 @@ export async function removeProductSupplierMapping(req: Request, res: Response, 
 
 export async function getFormMeta(req: Request, res: Response, next: NextFunction) {
   try {
-    const [brands, collections, categories, patternsResult] = await Promise.all([
+    const [brands, collections, categories, patterns] = await Promise.all([
       ProductsService.listBrands(),
       ProductsService.listCollections(),
       ProductsService.listCategories(),
-      ProductsService.listPatterns({ page: 1, limit: 200 }),
+      ProductsService.listPatternsForMeta(),
     ])
-    res.json({ brands, collections, categories, patterns: patternsResult.data })
+    // Allow CDN / browser to cache for 5 min; revalidate in background after that
+    res.setHeader('Cache-Control', 'private, max-age=300, stale-while-revalidate=60')
+    res.json({ brands, collections, categories, patterns })
   } catch (err) { next(err) }
 }
 

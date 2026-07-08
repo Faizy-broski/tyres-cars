@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   try {
     const { data } = await searchTyres({ q, page: 1 })
     return NextResponse.json({ results: data.slice(0, limit) })
-  } catch {
+  } catch (err) {
+    console.error('[api/search/tyres] search_tyres RPC failed:', err)
     return NextResponse.json({ results: [] })
   }
 }

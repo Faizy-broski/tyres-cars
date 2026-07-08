@@ -17,6 +17,8 @@ interface Props {
     xl?:       string
     speed?:    string
     app_type?: string
+    price_min?: string
+    price_max?: string
     page?:     string
     sort?:     string
   }>
@@ -35,6 +37,8 @@ export default async function TyresPage({ searchParams }: Props) {
     xl:       params.xl      === 'true' ? true : params.xl      === 'false' ? false : undefined,
     speed:    params.speed,
     app_type: params.app_type,
+    price_min: params.price_min ? Number(params.price_min) : undefined,
+    price_max: params.price_max ? Number(params.price_max) : undefined,
     sort:     params.sort as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc' | undefined,
     page:     params.page ? Number(params.page) : 1,
   }
@@ -46,6 +50,8 @@ export default async function TyresPage({ searchParams }: Props) {
   try {
     ;[result, facets] = await Promise.all([
       searchTyres(filters),
+      // Facets intentionally don't take price_min/price_max — a min/max range
+      // facet shouldn't exclude itself the way width/profile/rim/brand do.
       getTyreFacets({
         width:    filters.width,
         profile:  filters.profile,
@@ -72,6 +78,8 @@ export default async function TyresPage({ searchParams }: Props) {
         xl:       filters.xl,
         speed:    params.speed,
         app_type: params.app_type,
+        price_min: filters.price_min,
+        price_max: filters.price_max,
         sort:     (params.sort ?? 'updated_at_desc') as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc',
         page:     filters.page,
       }}

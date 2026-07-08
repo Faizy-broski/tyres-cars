@@ -6,6 +6,8 @@ export interface TyreSku {
   brand_id:          string
   brand_name:        string
   brand_slug:        string
+  brand_logo:        string | null
+  brand_positioning: 'budget' | 'mid_range' | 'premium' | 'commercial' | null
   pattern_id:        string
   pattern_name:      string
   pattern_slug:      string
@@ -22,24 +24,27 @@ export interface TyreSku {
 }
 
 export interface TyreFacets {
-  widths:    number[]
-  profiles:  number[]
-  rim_sizes: number[]
-  brands:    { brand_id: string; brand_name: string; brand_slug: string }[]
+  widths:      number[]
+  profiles:    number[]
+  rim_sizes:   number[]
+  brands:      { brand_id: string; brand_name: string; brand_slug: string }[]
+  price_range: { min: number | null; max: number | null }
 }
 
 export interface TyreSearchFilters {
-  q?:        string
-  width?:    number
-  profile?:  number
-  rim_size?: number
-  brand_id?: string
-  runflat?:  boolean
-  xl?:       boolean
-  speed?:    string
-  app_type?: string  // 'PCR' | '4x4' | 'TBR'
-  sort?:     'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
-  page?:     number
+  q?:          string
+  width?:      number
+  profile?:    number
+  rim_size?:   number
+  brand_id?:   string
+  runflat?:    boolean
+  xl?:         boolean
+  speed?:      string
+  app_type?:   string  // 'PCR' | '4x4' | 'TBR'
+  price_min?:  number
+  price_max?:  number
+  sort?:       'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
+  page?:       number
 }
 
 export const PAGE_SIZE = 24

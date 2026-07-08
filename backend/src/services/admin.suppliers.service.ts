@@ -127,6 +127,23 @@ export async function createSupplier(payload: CreateSupplierPayload) {
 }
 
 export async function deleteSupplier(id: string) {
+  // purchase_orders.supplier_id is ON DELETE RESTRICT (NOT NULL) — check before attempting
+  const { count, error: checkError } = await supabase
+    .from('purchase_orders')
+    .select('po_id', { count: 'exact', head: true })
+    .eq('supplier_id', id)
+
+  if (checkError) throw checkError
+
+  if ((count ?? 0) > 0) {
+    const err = new Error(
+      'Cannot delete supplier: there are existing purchase orders linked to this supplier. ' +
+      'Remove or reassign the purchase orders first.'
+    )
+    ;(err as NodeJS.ErrnoException).code = 'SUPPLIER_HAS_PURCHASE_ORDERS'
+    throw err
+  }
+
   const { error } = await supabase.from('suppliers').delete().eq('supplier_id', id)
   if (error) throw error
 }
