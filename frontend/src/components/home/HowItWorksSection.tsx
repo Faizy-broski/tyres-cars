@@ -119,7 +119,7 @@ export default function HowItWorksSection() {
                     >
                       <Image src={step.image} alt={step.title} fill sizes="170px" className="object-cover" />
                       <div className="absolute inset-0 bg-black/55" />
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute inset-x-0 top-0 bottom-40 flex items-center justify-center">
                         <h3 className="rotate-[-90deg] whitespace-nowrap font-oswald text-[28px] font-black uppercase tracking-wide text-white">
                           {step.short}
                         </h3>

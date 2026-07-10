@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw } from 'lucide-react'
+import { ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw, ShieldCheck, PackageCheck, Clock, HelpCircle } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
+import { DiscountBadge } from '@/components/storefront/TyreCard'
 
 interface Sibling {
   product_id:        string
@@ -141,6 +142,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     openCart()
   }
 
+  const hasPromo = product.retail_price != null && product.promo_price != null && product.promo_price < product.retail_price
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
@@ -161,9 +164,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         <span className="text-zinc-800">{product.tyre_size_display}</span>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-        {/* Gallery */}
-        <div className="flex flex-col-reverse sm:flex-row gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr_340px] gap-8 items-start">
+        {/* Column 1 — Gallery */}
+        <div className="min-w-0 flex flex-col-reverse sm:flex-row gap-3">
           {images.length > 1 && (
             <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:max-h-[420px] pb-1 sm:pb-0 sm:w-16 shrink-0">
               {images.map((img, i) => (
@@ -180,7 +183,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               ))}
             </div>
           )}
-          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden flex-1">
+          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden flex-1 min-w-0">
+            {hasPromo && (
+              <div className="absolute top-3 left-3 z-10">
+                <DiscountBadge original={product.retail_price!} promo={product.promo_price!} />
+              </div>
+            )}
             {images.length > 0 && (images[activeImg]?.startsWith('http') || images[activeImg]?.startsWith('/')) ? (
               <Image
                 src={images[activeImg]}
@@ -203,13 +211,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           </div>
         </div>
 
-        {/* Info */}
-        <div className="space-y-5">
+        {/* Column 2 — Product info & pricing */}
+        <div className="min-w-0 space-y-5">
           <div>
             {product.brand_name && (
               <p className="text-sm font-semibold text-zinc-400 uppercase tracking-wide">{product.brand_name}</p>
             )}
-            <h1 className="text-2xl font-bold text-zinc-900 mt-1">
+            <h1 className="text-2xl font-black text-zinc-900 mt-1 font-oswald uppercase tracking-wide">
               {product.pattern_name ?? product.sku}
             </h1>
             <p className="text-lg text-zinc-600 mt-0.5">{product.tyre_size_display}</p>
@@ -225,25 +233,28 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {/* EU Label */}
           <EULabel fuel={product.fuel_rating} wet={product.wet_grip} noise={product.noise_db} noiseClass={product.noise_class} />
 
-          {/* Price + CTA */}
+          {/* Price */}
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+            {hasPromo && (
+              <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-1.5 text-xs font-bold text-red-600 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" /> Limited Time Offer — Save More Today!
+              </div>
+            )}
+
             <div className="flex items-baseline justify-between">
               {product.retail_price != null ? (
-                product.promo_price != null && product.promo_price < product.retail_price ? (
+                hasPromo ? (
                   <div>
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span className="rounded-full bg-red-500 px-2 py-0.5 text-[11px] font-black text-white">
-                        -{Math.round((1 - product.promo_price / product.retail_price) * 100)}% OFF
-                      </span>
-                    </div>
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Was</p>
                     <p className="text-sm text-zinc-400 line-through leading-none">
-                      ${product.retail_price.toLocaleString()}
+                      ${product.retail_price!.toLocaleString()}
                     </p>
+                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mt-1.5">Now</p>
                     <p className="text-3xl font-bold text-primary">
-                      ${product.promo_price.toLocaleString()}
+                      ${product.promo_price!.toLocaleString()}
                     </p>
                     <p className="text-xs font-semibold text-green-600 mt-1">
-                      You save ${(product.retail_price - product.promo_price).toLocaleString()}
+                      You save ${(product.retail_price! - product.promo_price!).toLocaleString()}
                     </p>
                   </div>
                 ) : (
@@ -257,7 +268,30 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <StockBadge stock={product.total_available_stock} />
             </div>
 
-            {/* Quantity */}
+            {/* Informational only — no real Afterpay/Zip integration exists */}
+            {displayPrice != null && (
+              <p className="text-xs text-zinc-500">
+                or 4 payments of <span className="font-semibold text-zinc-700">${(displayPrice / 4).toFixed(2)}</span> with{' '}
+                <span className="font-semibold">Afterpay</span> or <span className="font-semibold">Zip</span>
+              </p>
+            )}
+
+            <p className="text-xs text-zinc-500 border-t border-zinc-100 pt-3">
+              All-inclusive price — includes delivery, balancing, new valve and eco-friendly tyre disposal.
+            </p>
+          </div>
+
+          {/* Size selector */}
+          {product.siblings.length > 0 && (
+            <SizeSelector current={product} siblings={product.siblings} />
+          )}
+        </div>
+
+        {/* Column 3 — Sidebar */}
+        <div className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
+            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">Order Summary</h2>
+
             <div>
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Quantity</p>
               <div className="flex gap-2">
@@ -267,7 +301,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
                     type="button"
                     disabled={n > product.total_available_stock}
                     onClick={() => setQty(n)}
-                    className={`w-10 h-10 rounded-lg border-2 text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                    className={`w-9 h-9 rounded-lg border-2 text-sm font-bold transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
                       qty === n ? 'border-primary bg-primary text-zinc-900' : 'border-zinc-200 text-zinc-700 hover:border-primary'
                     }`}
                   >
@@ -277,13 +311,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             </div>
 
-            {/* Informational only — no real Afterpay/Zip integration exists */}
-            {displayPrice != null && (
-              <p className="text-xs text-zinc-500">
-                or 4 payments of <span className="font-semibold text-zinc-700">${(displayPrice / 4).toFixed(2)}</span> with{' '}
-                <span className="font-semibold">Afterpay</span> or <span className="font-semibold">Zip</span>
-              </p>
-            )}
+            <div className="flex items-baseline justify-between border-t border-zinc-100 pt-3">
+              <span className="text-sm text-zinc-500">Order Total</span>
+              <span className="text-xl font-bold text-primary">
+                {displayPrice != null ? `$${(displayPrice * qty).toLocaleString()}` : '—'}
+              </span>
+            </div>
 
             <button
               type="button"
@@ -302,30 +335,51 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <Wrench className="w-4 h-4" />
               Choose a Fitter
             </button>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
-                <Truck className="w-3.5 h-3.5" /> Free Delivery
-              </span>
-              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
-                <Wrench className="w-3.5 h-3.5" /> Fitting Available
-              </span>
-              <span className="flex items-center gap-1.5 rounded-full bg-zinc-100 text-zinc-600 px-3 py-1 text-xs font-semibold">
-                <RotateCcw className="w-3.5 h-3.5" /> 30-Day Returns
-              </span>
-            </div>
           </div>
 
-          {/* Size selector */}
-          {product.siblings.length > 0 && (
-            <div className="mt-8">
-              <SizeSelector current={product} siblings={product.siblings} />
+          <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
+            <div className="flex items-center gap-2 mb-1.5">
+              <HelpCircle className="w-4 h-4 text-zinc-500" />
+              <h2 className="text-sm font-bold text-zinc-900">Need Help?</h2>
             </div>
-          )}
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              Not sure this is the right fit, or have questions about delivery and fitting? Use &ldquo;Choose a Fitter&rdquo; above to book a fitting station near you, or add to cart to see full delivery details at checkout.
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Description — full width below the image/info grid */}
+      {/* Tyre details & What's included — full width below the order summary */}
+      <div className="mt-10 grid grid-cols-1 lg:grid-cols-[1.1fr_340px] gap-8 items-start">
+        <div className="rounded-2xl border border-zinc-200 bg-white p-6">
+          <h2 className="text-base font-semibold text-zinc-900 mb-1">Tyre Details</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
+            <SpecRow label="Model"              value={product.pattern_name} />
+            <SpecRow label="Product Code"       value={product.sku} />
+            <SpecRow label="Brand"              value={product.brand_name} />
+            <SpecRow label="Tyre Size"          value={product.tyre_size_display} />
+            <SpecRow label="Load Index"         value={product.load_index} />
+            <SpecRow label="Speed Rating"       value={product.speed_rating} />
+
+            <SpecRow label="Width"              value={product.width ? `${product.width} mm` : null} />
+            <SpecRow label="Profile"            value={product.profile ? `${product.profile}%` : null} />
+            <SpecRow label="Rim Size"           value={product.rim_size ? `${product.rim_size}"` : null} />
+            <SpecRow label="Construction"       value={product.construction_type} />
+            <SpecRow label="Ply Rating"         value={product.ply_rating} />
+            <SpecRow label="Load Range"         value={product.load_range} />
+            <SpecRow label="Sidewall"           value={product.sidewall} />
+            <SpecRow label="Overall Diameter"   value={product.overall_diameter ? `${product.overall_diameter} mm` : null} />
+            <SpecRow label="Tread Depth"        value={product.tread_depth ? `${product.tread_depth} mm` : null} />
+            <SpecRow label="Tyre Weight"        value={product.tyre_weight ? `${product.tyre_weight} kg` : null} />
+            <SpecRow label="E-Mark"             value={product.e_mark} />
+            <SpecRow label="UTQG"               value={product.utqg} />
+          </div>
+        </div>
+
+        <WhatsIncluded />
+      </div>
+
+      {/* Description — full width below the 3-column grid */}
       {product.pattern_short_description && (
         <div className="mt-10 rounded-2xl border border-zinc-200 bg-white p-6">
           <h2 className="text-base font-semibold text-zinc-900 mb-3">About this tyre</h2>
@@ -336,33 +390,37 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         </div>
       )}
 
-      {/* Specs */}
-      <div className="mt-6 rounded-2xl border border-zinc-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-zinc-900 mb-4">Specifications</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
-          <SpecRow label="Width"              value={product.width ? `${product.width} mm` : null} />
-          <SpecRow label="Profile"            value={product.profile ? `${product.profile}%` : null} />
-          <SpecRow label="Rim Size"           value={product.rim_size ? `${product.rim_size}"` : null} />
-          <SpecRow label="Speed Rating"       value={product.speed_rating} />
-          <SpecRow label="Load Index"         value={product.load_index} />
-          <SpecRow label="Construction"       value={product.construction_type} />
-          <SpecRow label="Ply Rating"         value={product.ply_rating} />
-          <SpecRow label="Load Range"         value={product.load_range} />
-          <SpecRow label="Sidewall"           value={product.sidewall} />
-          <SpecRow label="Overall Diameter"   value={product.overall_diameter ? `${product.overall_diameter} mm` : null} />
-          <SpecRow label="Tread Depth"        value={product.tread_depth ? `${product.tread_depth} mm` : null} />
-          <SpecRow label="Tyre Weight"        value={product.tyre_weight ? `${product.tyre_weight} kg` : null} />
-
-          <SpecRow label="E-Mark"             value={product.e_mark} />
-          <SpecRow label="UTQG"               value={product.utqg} />
-        </div>
-      </div>
       <FitterSelectionModal
         open={fitterOpen}
         onClose={() => setFitterOpen(false)}
         tyreQty={qty}
         cartSubtotal={product.retail_price ?? 0}
       />
+    </div>
+  )
+}
+
+function WhatsIncluded() {
+  const items = [
+    { icon: Truck,        label: 'Free Delivery' },
+    { icon: Wrench,       label: 'Professional Balancing' },
+    { icon: ShieldCheck,  label: 'New Valve' },
+    { icon: RotateCcw,    label: 'Eco-Friendly Tyre Disposal' },
+    { icon: PackageCheck, label: 'Dispatch in 1–2 Business Days' },
+    { icon: Truck,        label: 'Delivery in 2–7 Business Days' },
+    { icon: ShieldCheck,  label: '100% Genuine Product' },
+  ]
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wide mb-3">What&apos;s Included</h2>
+      <ul className="space-y-2.5">
+        {items.map(({ icon: Icon, label }) => (
+          <li key={label} className="flex items-center gap-2.5 text-sm text-zinc-700">
+            <Icon className="w-4 h-4 text-primary shrink-0" />
+            {label}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -384,8 +442,8 @@ function SizeSelector({ current, siblings }: { current: { tyre_size_display: str
   )
 
   return (
-    <div>
-      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">All Sizes</p>
+    <div className="rounded-2xl border border-zinc-200 bg-white p-5">
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Select Tyre Size</p>
 
       <div className="flex flex-wrap gap-2">
         {/* Current size — always first */}

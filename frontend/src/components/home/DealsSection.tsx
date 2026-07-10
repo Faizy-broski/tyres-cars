@@ -39,6 +39,74 @@ function SkeletonCard() {
   );
 }
 
+function PhoneSkeletonCard() {
+  return <div className="aspect-[3/4] animate-pulse rounded-[2rem] bg-zinc-200" />;
+}
+
+// Mobile-only "phone screenshot" style card: black bezel bars top/bottom
+function PhoneDealCard({ deal }: { deal: ActiveDeal }) {
+  const hasImage = deal.image_url && deal.image_url.startsWith("http");
+  const brandInitials = deal.brand_name
+    ? deal.brand_name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase()
+    : "—";
+
+  const inner = (
+    <div className="relative aspect-[3/4] overflow-hidden rounded-[2rem] bg-black shadow-md">
+      {hasImage ? (
+        <Image
+          src={deal.image_url!}
+          alt={deal.title}
+          fill
+          sizes="50vw"
+          className="object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-zinc-800 via-zinc-900 to-black flex items-center justify-center">
+          <span className="font-oswald text-3xl font-black text-white/20">{brandInitials}</span>
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-black/20" />
+
+      {/* Bezel bars */}
+      <div className="absolute inset-x-0 top-0 h-3 bg-black" />
+      <div className="absolute inset-x-0 bottom-0 h-3 bg-black" />
+
+      {deal.brand_name && (
+        <div className="absolute left-3 top-6">
+          <div className="rounded-full bg-white px-2.5 py-1 text-[9px] font-bold uppercase tracking-wide text-black">
+            {deal.brand_name}
+          </div>
+        </div>
+      )}
+
+      <div className="absolute bottom-4 left-0 w-full px-3.5">
+        {deal.description && (
+          <p className="text-xs leading-snug text-white/80 line-clamp-2">{deal.description}</p>
+        )}
+        <h3 className="mt-1 font-oswald text-xl font-black leading-[1.05] tracking-tight text-white">
+          {deal.title}
+        </h3>
+        <p className="mt-1.5 text-[10px] text-white/55">
+          {formatDateRange(deal.start_date, deal.end_date)}
+        </p>
+        {deal.cta_url && (
+          <p className="mt-1.5 text-xs font-semibold text-primary">
+            View Deal →
+          </p>
+        )}
+      </div>
+    </div>
+  );
+
+  return deal.cta_url ? (
+    <Link href={deal.cta_url} className="block">
+      {inner}
+    </Link>
+  ) : (
+    inner
+  );
+}
+
 function DealCard({ deal }: { deal: ActiveDeal }) {
   const hasImage = deal.image_url && deal.image_url.startsWith("http");
   const brandInitials = deal.brand_name
@@ -173,19 +241,29 @@ export default function DealsSection() {
           )}
         </motion.div>
 
-        {loading ? (
-          <div className="flex gap-4 overflow-hidden pl-4 sm:pl-6 lg:pl-10">
-            {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
-          </div>
-        ) : (
-          <div className="overflow-hidden pl-4 sm:pl-6 lg:pl-10" ref={emblaRef}>
-            <div className="flex gap-4">
-              {deals.map((deal) => (
-                <DealCard key={deal.promotion_id} deal={deal} />
-              ))}
+        {/* Mobile — static 2-column phone-frame grid */}
+        <div className="grid grid-cols-2 gap-3 px-4 sm:hidden">
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => <PhoneSkeletonCard key={i} />)
+            : deals.map((deal) => <PhoneDealCard key={deal.promotion_id} deal={deal} />)}
+        </div>
+
+        {/* Tablet/desktop — horizontal scroll carousel */}
+        <div className="hidden sm:block">
+          {loading ? (
+            <div className="flex gap-4 overflow-hidden pl-4 sm:pl-6 lg:pl-10">
+              {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="overflow-hidden pl-4 sm:pl-6 lg:pl-10" ref={emblaRef}>
+              <div className="flex gap-4">
+                {deals.map((deal) => (
+                  <DealCard key={deal.promotion_id} deal={deal} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   );
