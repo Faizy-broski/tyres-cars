@@ -71,6 +71,7 @@ export default async function ProductDetailPage({ params }: Props) {
       noise_class,
       variant_images,
       total_available_stock,
+      compare_at_price,
       pattern_id,
       brand_id,
       patterns (
@@ -153,6 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
     gallery_images:            pattern?.gallery_images             ?? [],
     retail_price,
     promo_price,
+    compare_at_price:          sku.compare_at_price ?? null,
     siblings: siblings ?? [],
   }
 

@@ -187,7 +187,60 @@ export default function EditProductForm({
         throw new Error(patchBody.error ?? patchBody.message ?? `Failed to update product (${patchRes.status})`)
       }
 
-      // Variants are updated individually inline within the form grid, no need to post them here.
+      // 2. PATCH pricing/inventory for every sibling size shown in the Pricing & Inventory table
+      //    (existingSkus and values.pricing are index-aligned — both built from the same SKU list)
+      //    Warehouse selection is manual per row — a row left without one simply doesn't
+      //    get its stock/inventory saved yet (price/compare-at/cost still save normally).
+      async function saveRow(i: number) {
+        const variantId = existingSkus[i]?.product_id
+        const p = values.pricing?.[i]
+        if (!variantId || !p) return
+
+        const [skuRes, priceRes, stockRes] = await Promise.all([
+          fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({
+              compareAtPrice: p.compareAtPrice ?? null,
+              costPrice: p.costPrice ?? null,
+              lowStockAlert: p.lowStockAlert ?? null,
+            }),
+          }),
+          p.priceIncGst != null
+            ? fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/prices`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({ prices: { Retail: p.priceIncGst } }),
+              })
+            : null,
+          p.warehouseId
+            ? fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/stock`, {
+                method: 'PATCH',
+                headers,
+                body: JSON.stringify({
+                  warehouseId: p.warehouseId,
+                  availableStock: p.inventory ?? 0,
+                  lowStockAlert: p.lowStockAlert,
+                }),
+              })
+            : null,
+        ])
+
+        if (!skuRes.ok) {
+          const body = await skuRes.json().catch(() => ({}))
+          throw new Error(body.error ?? body.message ?? `Failed to update pricing for ${existingSkus[i].tyre_size_display}`)
+        }
+        if (priceRes && !priceRes.ok) {
+          const body = await priceRes.json().catch(() => ({}))
+          throw new Error(body.error ?? body.message ?? `Failed to update price for ${existingSkus[i].tyre_size_display}`)
+        }
+        if (stockRes && !stockRes.ok) {
+          const body = await stockRes.json().catch(() => ({}))
+          throw new Error(body.error ?? body.message ?? `Failed to update stock for ${existingSkus[i].tyre_size_display}`)
+        }
+      }
+
+      await Promise.all(existingSkus.map((_, i) => saveRow(i)))
 
       toastSuccess('Product saved successfully')
       router.refresh()
@@ -464,7 +517,8 @@ function FormBody({
 
           {/* SKU reference codes */}
           {existingSkus.length > 0 && (
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="mt-4 max-h-[420px] overflow-y-auto rounded-lg border border-zinc-100 p-1">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 p-3">
               {existingSkus.map(sku => {
                 const defaultHelper = [
                   sku.width    != null ? Math.floor(sku.width)    : '',
@@ -524,6 +578,7 @@ function FormBody({
                   </div>
                 )
               })}
+            </div>
             </div>
           )}
 
@@ -995,12 +1050,12 @@ function FormBody({
             </p>
           ) : (
             <>
-              <div className="border border-zinc-200 rounded-xl overflow-x-auto">
+              <div className="border border-zinc-200 rounded-xl overflow-auto max-h-[480px]">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-zinc-200 bg-zinc-50">
-                      {['Tire Size', 'SKU', 'Price (inc. GST) *', 'Compare at', 'Cost', 'Margin', 'Inventory', 'Low Stock Alert'].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    <tr className="border-b border-zinc-200 bg-zinc-50 sticky top-0 z-10">
+                      {['Tire Size', 'SKU', 'Price (inc. GST) *', 'Compare at', 'Cost', 'Margin', 'Inventory', 'Warehouse', 'Low Stock Alert'].map(h => (
+                        <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap bg-zinc-50">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1046,6 +1101,12 @@ function FormBody({
                             <input type="number" min="0" {...register(`pricing.${index}.inventory`, { valueAsNumber: true })} className="w-20 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="0" />
                           </td>
                           <td className="px-4 py-3">
+                            <select {...register(`pricing.${index}.warehouseId`)} className="rounded border border-zinc-200 px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
+                              <option value="">Select warehouse</option>
+                              {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
                             <input type="number" min="0" {...register(`pricing.${index}.lowStockAlert`, { valueAsNumber: true })} className="w-16 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="10" />
                           </td>
                         </tr>
@@ -1055,18 +1116,6 @@ function FormBody({
                 </table>
               </div>
 
-              {warehouses.length > 0 && (
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  <label className="text-sm text-zinc-600">Assign inventory to warehouse:</label>
-                  <select
-                    onChange={e => variants.forEach((_, i) => setValue(`pricing.${i}.warehouseId`, e.target.value, { shouldDirty: true }))}
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                  >
-                    <option value="">Select warehouse</option>
-                    {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
-                  </select>
-                </div>
-              )}
             </>
           )}
         </section>

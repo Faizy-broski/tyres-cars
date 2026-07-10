@@ -116,18 +116,19 @@ export default function EditProductPage() {
           shoulderType:        p.shoulder_type ?? undefined,
           terrainType:         p.terrain_type ?? '',
           warrantyKm:          p.warranty_km ?? undefined,
-          // Populate variants[0] from the first existing SKU so Tyre Specs tab shows current data
-          variants: skus.length > 0 ? [{
-            sku:              skus[0].sku ?? '',
+          // Populate one variants[] / pricing[] row per existing SKU so the Pricing &
+          // Inventory table (which loops over `variants`) shows every sibling size, not just the first.
+          variants: skus.length > 0 ? productJson.skus.map((s: any) => ({
+            sku:              s.sku ?? '',
             barcodeEan:       '',
-            tyreSizeDisplay:  skus[0].tyre_size_display ?? '',
-            width:            skus[0].width ?? undefined,
-            profile:          skus[0].profile ?? undefined,
-            rimSize:          skus[0].rim_size ?? 0,
+            tyreSizeDisplay:  s.tyre_size_display ?? '',
+            width:            s.width ?? undefined,
+            profile:          s.profile ?? undefined,
+            rimSize:          s.rim_size ?? 0,
             specialSize:      '',
             constructionType: undefined,
-            speedRating:      skus[0].speed_rating ?? '',
-            loadIndex:        skus[0].load_index ?? '',
+            speedRating:      s.speed_rating ?? '',
+            loadIndex:        s.load_index ?? '',
             loadSpeedRating:  '',
             fuelRating:       '',
             wetGrip:          '',
@@ -154,9 +155,9 @@ export default function EditProductPage() {
             dotCode:          '',
             utqg:             '',
             variantImages:    [],
-            status:           (skus[0].status as 'active' | 'inactive' | 'discontinued') ?? 'active',
+            status:           (s.status as 'active' | 'inactive' | 'discontinued') ?? 'active',
             replacementProductId: '',
-          }] : [{
+          })) : [{
             sku: '', barcodeEan: '', tyreSizeDisplay: '', width: undefined, profile: undefined,
             rimSize: 0, specialSize: '', constructionType: undefined, speedRating: '', loadIndex: '',
             loadSpeedRating: '', fuelRating: '', wetGrip: '', noiseDb: '', noiseClass: '',
@@ -168,7 +169,18 @@ export default function EditProductPage() {
             eMark: '', dotCode: '', utqg: '', variantImages: [], status: 'active' as const,
             replacementProductId: '',
           }],
-          pricing:  [],
+          pricing: productJson.skus.map((s: any) => {
+            const price = (s.product_prices ?? []).find((pr: any) => pr.price_type === 'retail') ?? (s.product_prices ?? [])[0]
+            const stock = (s.product_stock ?? [])[0]
+            return {
+              priceIncGst:    price?.price_inc_gst ?? 0,
+              compareAtPrice: s.compare_at_price ?? undefined,
+              costPrice:      s.cost_price ?? undefined,
+              inventory:      stock?.available_stock ?? 0,
+              lowStockAlert:  s.low_stock_alert ?? 10,
+              warehouseId:    stock?.warehouse_id ?? '',
+            }
+          }),
         }
 
         if (!cancelled) {

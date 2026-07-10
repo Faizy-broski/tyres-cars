@@ -804,7 +804,7 @@ export async function updateVariantPrices(
 
   const gstRate = 0.1
 
-  const toUpdate: { price_id: string; price_inc_gst: number; price_ex_gst: number }[] = []
+  const toUpdate: { price_id: string; product_id: string; price_type: string; price_inc_gst: number; price_ex_gst: number }[] = []
   const toInsert: { product_id: string; price_type: string; price_inc_gst: number; price_ex_gst: number; is_active: boolean }[] = []
 
   for (const [groupName, priceIncGst] of Object.entries(prices)) {
@@ -815,7 +815,7 @@ export async function updateVariantPrices(
     const priceExGst = parseFloat((priceIncGst / (1 + gstRate)).toFixed(2))
 
     if (row?.price_id) {
-      toUpdate.push({ price_id: row.price_id, price_inc_gst: priceIncGst, price_ex_gst: priceExGst })
+      toUpdate.push({ price_id: row.price_id, product_id: productId, price_type: row.price_type, price_inc_gst: priceIncGst, price_ex_gst: priceExGst })
     } else {
       toInsert.push({ product_id: productId, price_type: 'retail', price_inc_gst: priceIncGst, price_ex_gst: priceExGst, is_active: true })
     }

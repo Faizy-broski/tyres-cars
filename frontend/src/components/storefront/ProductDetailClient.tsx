@@ -1,12 +1,22 @@
 'use client'
 
 import { useState } from 'react'
+import type { ComponentType } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw, ShieldCheck, PackageCheck, Clock, HelpCircle } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import {
+  ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw, ShieldCheck, PackageCheck,
+  Clock, HelpCircle, Check, Tag, Hash, Award, Ruler, Gauge, Mail, BadgeCheck,
+} from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
-import { DiscountBadge } from '@/components/storefront/TyreCard'
+import { DiscountBadge, RibbonBadge } from '@/components/storefront/TyreCard'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
+} from '@/components/ui/dialog'
+
+const SUPPORT_EMAIL = 'support@tyrevault.com.au'
 
 interface Sibling {
   product_id:        string
@@ -31,6 +41,7 @@ interface Product {
   application_type:  string | null
   retail_price:      number | null
   promo_price:       number | null
+  compare_at_price:  number | null
   total_available_stock: number
   gallery_images:    string[]
   variant_images:    string[] | null
@@ -97,11 +108,16 @@ function EULabel({ fuel, wet, noise, noiseClass }: {
   )
 }
 
-function SpecRow({ label, value }: { label: string; value?: string | number | null }) {
+function SpecRow({ label, value, icon: Icon }: {
+  label: string; value?: string | number | null; icon?: ComponentType<{ className?: string }>
+}) {
   if (value == null || value === '') return null
   return (
     <div className="flex items-center justify-between py-2.5 border-b border-zinc-100 last:border-0">
-      <span className="text-sm text-zinc-500">{label}</span>
+      <span className="flex items-center gap-2 text-sm text-zinc-500">
+        {Icon && <Icon className="w-4 h-4 text-zinc-400 shrink-0" />}
+        {label}
+      </span>
       <span className="text-sm font-medium text-zinc-800">{String(value)}</span>
     </div>
   )
@@ -118,9 +134,15 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     ...(product.gallery_images ?? []),
   ].filter(Boolean)
 
-  const displayPrice = product.promo_price != null && product.promo_price < (product.retail_price ?? 0)
-    ? product.promo_price
-    : product.retail_price
+  // A time-limited promotion (promotions table) takes priority over the evergreen
+  // "Compare At" price set directly on the SKU — if neither applies, there's no discount.
+  const hasActivePromo = product.retail_price != null && product.promo_price != null && product.promo_price < product.retail_price
+  const hasCompareDiscount = !hasActivePromo && product.retail_price != null && product.compare_at_price != null && product.compare_at_price > product.retail_price
+  const hasPromo = hasActivePromo || hasCompareDiscount
+
+  const wasPrice = hasActivePromo ? product.retail_price : hasCompareDiscount ? product.compare_at_price : null
+  const nowPrice = hasActivePromo ? product.promo_price   : product.retail_price
+  const displayPrice = nowPrice
 
   async function handleAddToCart() {
     const result = await addItem({
@@ -128,7 +150,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       sku:   product.sku,
       name:  `${product.brand_name ?? ''} ${product.pattern_name ?? ''}`.trim(),
       size:  product.tyre_size_display,
-      price: product.retail_price ?? 0,
+      price: displayPrice ?? 0,
       image: images[0]?.startsWith('http') ? images[0] : null,
       stock: product.total_available_stock,
     }, qty)
@@ -141,8 +163,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     }
     openCart()
   }
-
-  const hasPromo = product.retail_price != null && product.promo_price != null && product.promo_price < product.retail_price
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -166,29 +186,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr_340px] gap-8 items-start">
         {/* Column 1 — Gallery */}
-        <div className="min-w-0 flex flex-col-reverse sm:flex-row gap-3">
-          {images.length > 1 && (
-            <div className="flex sm:flex-col gap-2 overflow-x-auto sm:overflow-y-auto sm:max-h-[420px] pb-1 sm:pb-0 sm:w-16 shrink-0">
-              {images.map((img, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setActiveImg(i)}
-                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
-                    i === activeImg ? 'border-primary' : 'border-transparent'
-                  }`}
-                >
-                  <Image src={img} alt="" width={64} height={64} className="w-full h-full object-contain p-1" />
-                </button>
-              ))}
+        <div className="min-w-0 flex flex-col gap-3">
+          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden">
+            <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
+              {product.pattern_name && <RibbonBadge tone="premium" label={product.pattern_name} />}
+              {hasPromo && <DiscountBadge original={wasPrice!} promo={nowPrice!} />}
             </div>
-          )}
-          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden flex-1 min-w-0">
-            {hasPromo && (
-              <div className="absolute top-3 left-3 z-10">
-                <DiscountBadge original={product.retail_price!} promo={product.promo_price!} />
-              </div>
-            )}
             {images.length > 0 && (images[activeImg]?.startsWith('http') || images[activeImg]?.startsWith('/')) ? (
               <Image
                 src={images[activeImg]}
@@ -209,6 +212,23 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
           </div>
+
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {images.map((img, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setActiveImg(i)}
+                  className={`shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-colors ${
+                    i === activeImg ? 'border-primary' : 'border-zinc-200'
+                  }`}
+                >
+                  <Image src={img} alt="" width={64} height={64} className="w-full h-full object-contain p-1 bg-zinc-50" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Column 2 — Product info & pricing */}
@@ -235,27 +255,23 @@ export default function ProductDetailClient({ product }: { product: Product }) {
 
           {/* Price */}
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
-            {hasPromo && (
-              <div className="rounded-lg bg-red-50 border border-red-100 px-3 py-1.5 text-xs font-bold text-red-600 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" /> Limited Time Offer — Save More Today!
-              </div>
-            )}
-
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-start justify-between">
               {product.retail_price != null ? (
                 hasPromo ? (
-                  <div>
-                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Was</p>
-                    <p className="text-sm text-zinc-400 line-through leading-none">
-                      ${product.retail_price!.toLocaleString()}
-                    </p>
-                    <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mt-1.5">Now</p>
-                    <p className="text-3xl font-bold text-primary">
-                      ${product.promo_price!.toLocaleString()}
-                    </p>
-                    <p className="text-xs font-semibold text-green-600 mt-1">
-                      You save ${(product.retail_price! - product.promo_price!).toLocaleString()}
-                    </p>
+                  <div className="flex items-stretch divide-x divide-zinc-200">
+                    <div className="pr-4">
+                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Was</p>
+                      <p className="text-lg text-zinc-400 line-through leading-tight">
+                        ${wasPrice!.toLocaleString()}
+                      </p>
+                    </div>
+                    <div className="pl-4">
+                      <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide">Now</p>
+                      <p className="text-3xl font-bold text-primary leading-tight">
+                        ${nowPrice!.toLocaleString()}
+                        <span className="text-sm font-medium text-zinc-500"> /each</span>
+                      </p>
+                    </div>
                   </div>
                 ) : (
                   <p className="text-3xl font-bold text-zinc-900">
@@ -268,16 +284,15 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <StockBadge stock={product.total_available_stock} />
             </div>
 
-            {/* Informational only — no real Afterpay/Zip integration exists */}
-            {displayPrice != null && (
-              <p className="text-xs text-zinc-500">
-                or 4 payments of <span className="font-semibold text-zinc-700">${(displayPrice / 4).toFixed(2)}</span> with{' '}
-                <span className="font-semibold">Afterpay</span> or <span className="font-semibold">Zip</span>
-              </p>
+            {hasActivePromo && (
+              <div className="rounded-lg bg-primary/10 border border-primary/20 px-3 py-1.5 text-xs font-bold text-primary flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" /> Limited Time Offer — Save More Today!
+              </div>
             )}
 
-            <p className="text-xs text-zinc-500 border-t border-zinc-100 pt-3">
-              All-inclusive price — includes delivery, balancing, new valve and eco-friendly tyre disposal.
+            <p className="flex items-start gap-1.5 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
+              <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+              <span><span className="font-semibold text-zinc-700">All-Inclusive Price:</span> Includes delivery, balancing, new valve and eco-friendly tyre disposal.</span>
             </p>
           </div>
 
@@ -322,7 +337,7 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               type="button"
               onClick={handleAddToCart}
               disabled={product.total_available_stock === 0}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <ShoppingCart className="w-4 h-4" />
               {product.total_available_stock === 0 ? 'Out of Stock' : 'Add to Cart'}
@@ -342,9 +357,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <HelpCircle className="w-4 h-4 text-zinc-500" />
               <h2 className="text-sm font-bold text-zinc-900">Need Help?</h2>
             </div>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              Not sure this is the right fit, or have questions about delivery and fitting? Use &ldquo;Choose a Fitter&rdquo; above to book a fitting station near you, or add to cart to see full delivery details at checkout.
+            <p className="text-xs text-zinc-500 leading-relaxed mb-3">
+              Our team is here to help you. We&apos;ll get back to you shortly.
             </p>
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${product.pattern_name ?? product.sku} ${product.tyre_size_display}`)}`}
+              className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-700 hover:border-primary hover:text-primary transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Send an Enquiry
+            </a>
           </div>
         </div>
       </div>
@@ -354,12 +376,12 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         <div className="rounded-2xl border border-zinc-200 bg-white p-6">
           <h2 className="text-base font-semibold text-zinc-900 mb-1">Tyre Details</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-10">
-            <SpecRow label="Model"              value={product.pattern_name} />
-            <SpecRow label="Product Code"       value={product.sku} />
-            <SpecRow label="Brand"              value={product.brand_name} />
-            <SpecRow label="Tyre Size"          value={product.tyre_size_display} />
-            <SpecRow label="Load Index"         value={product.load_index} />
-            <SpecRow label="Speed Rating"       value={product.speed_rating} />
+            <SpecRow label="Model"              value={product.pattern_name} icon={Tag} />
+            <SpecRow label="Product Code"       value={product.sku} icon={Hash} />
+            <SpecRow label="Brand"              value={product.brand_name} icon={Award} />
+            <SpecRow label="Tyre Size"          value={product.tyre_size_display} icon={Ruler} />
+            <SpecRow label="Load Index"         value={product.load_index} icon={Gauge} />
+            <SpecRow label="Speed Rating"       value={product.speed_rating} icon={Gauge} />
 
             <SpecRow label="Width"              value={product.width ? `${product.width} mm` : null} />
             <SpecRow label="Profile"            value={product.profile ? `${product.profile}%` : null} />
@@ -426,65 +448,61 @@ function WhatsIncluded() {
 }
 
 function SizeSelector({ current, siblings }: { current: { tyre_size_display: string }; siblings: Sibling[] }) {
-  const [showOos, setShowOos] = useState(false)
+  const router = useRouter()
 
-  const inStock = siblings.filter(s => s.total_available_stock > 0)
-  const oos     = siblings.filter(s => s.total_available_stock === 0)
+  const options = [
+    { product_id: 'current', product_slug: null, tyre_size_display: current.tyre_size_display, total_available_stock: 1 } as Sibling,
+    ...siblings,
+  ]
 
-  const pill = (s: Sibling) => (
-    <Link
-      key={s.product_id}
-      href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
-      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
-    >
-      {s.tyre_size_display}
-    </Link>
-  )
+  function handleChange(slug: string) {
+    if (slug) router.push(`/tyres/${slug}`)
+  }
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-5">
       <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-3">Select Tyre Size</p>
 
-      <div className="flex flex-wrap gap-2">
-        {/* Current size — always first */}
-        <span className="rounded-lg border-2 border-primary bg-primary px-3 py-1.5 text-xs font-bold text-zinc-900 shadow-sm whitespace-nowrap">
-          {current.tyre_size_display}
-        </span>
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          defaultValue=""
+          onChange={e => handleChange(e.target.value)}
+          className="flex-1 min-w-[160px] rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-800 bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+        >
+          {options.map(s => (
+            <option
+              key={s.product_id}
+              value={s.product_slug ?? ''}
+              disabled={s.product_id !== 'current' && s.total_available_stock === 0}
+            >
+              {s.tyre_size_display}{s.product_id !== 'current' && s.total_available_stock === 0 ? ' (Out of stock)' : ''}
+            </option>
+          ))}
+        </select>
 
-        {/* In-stock siblings */}
-        {inStock.map(pill)}
-
-        {/* OOS toggle */}
-        {oos.length > 0 && !showOos && (
-          <button
-            type="button"
-            onClick={() => setShowOos(true)}
-            className="rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 transition-colors whitespace-nowrap"
-          >
-            +{oos.length} more (OOS)
-          </button>
-        )}
-
-        {/* OOS sizes revealed */}
-        {showOos && oos.map(s => (
-          <Link
-            key={s.product_id}
-            href={s.product_slug ? `/tyres/${s.product_slug}` : '#'}
-            className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 transition-colors whitespace-nowrap"
-          >
-            {s.tyre_size_display}
-          </Link>
-        ))}
-
-        {showOos && (
-          <button
-            type="button"
-            onClick={() => setShowOos(false)}
-            className="rounded-lg border border-dashed border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:border-zinc-400 hover:text-zinc-600 transition-colors whitespace-nowrap"
-          >
-            Hide OOS
-          </button>
-        )}
+        <Dialog>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center justify-center gap-2 rounded-lg border-2 border-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
+            >
+              <BadgeCheck className="w-4 h-4" />
+              Price Match
+            </button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Price Match Promise</DialogTitle>
+              <DialogDescription>
+                Found this tyre cheaper elsewhere? Send us the details and we&apos;ll do our best to match it.{' '}
+                <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Price match request — ${current.tyre_size_display}`)}`}>
+                  Email {SUPPORT_EMAIL}
+                </a>{' '}
+                with a link to the competitor&apos;s listing.
+              </DialogDescription>
+            </DialogHeader>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   )
