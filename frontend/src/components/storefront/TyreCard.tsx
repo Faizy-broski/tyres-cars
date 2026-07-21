@@ -1,8 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { ShoppingCart, ImageOff } from 'lucide-react'
+import { ShoppingCart, ImageOff, Mail } from 'lucide-react'
 import type { TyreSku } from '@/lib/supabase/search.types'
+
+const SUPPORT_EMAIL = 'support@tyrevault.com.au'
 
 export function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) return <span className="text-xs font-semibold text-red-500">Out of stock</span>
@@ -113,15 +115,24 @@ export default function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCa
 
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
-          <button
-            type="button"
-            onClick={() => onAddToCart(hit)}
-            disabled={hit.total_stock === 0}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Add to cart
-          </button>
+          {hit.total_stock === 0 ? (
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${hit.pattern_name} ${hit.tyre_size_display}`)}`}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
+            >
+              <Mail className="w-4 h-4" />
+              Send Inquiry
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddToCart(hit)}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Add to cart
+            </button>
+          )}
           <a
             href={href}
             className="w-full flex items-center justify-center rounded-lg border-2 border-primary py-2 text-sm font-bold text-zinc-900 hover:bg-primary/10 transition-colors"

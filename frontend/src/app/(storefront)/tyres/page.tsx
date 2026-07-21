@@ -19,6 +19,7 @@ interface Props {
     app_type?: string
     price_min?: string
     price_max?: string
+    terrain?:  string
     page?:     string
     sort?:     string
   }>
@@ -39,6 +40,7 @@ export default async function TyresPage({ searchParams }: Props) {
     app_type: params.app_type,
     price_min: params.price_min ? Number(params.price_min) : undefined,
     price_max: params.price_max ? Number(params.price_max) : undefined,
+    terrain:  params.terrain,
     sort:     params.sort as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc' | undefined,
     page:     params.page ? Number(params.page) : 1,
   }
@@ -80,6 +82,7 @@ export default async function TyresPage({ searchParams }: Props) {
         app_type: params.app_type,
         price_min: filters.price_min,
         price_max: filters.price_max,
+        terrain:  params.terrain,
         sort:     (params.sort ?? 'updated_at_desc') as 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc',
         page:     filters.page,
       }}

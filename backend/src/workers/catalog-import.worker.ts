@@ -408,7 +408,8 @@ async function importSkus(
       if (g('max_pressure'))       skuPayload.max_pressure       = g('max_pressure')
       if (g('wet_grip'))           skuPayload.wet_grip           = g('wet_grip')
       if (g('fuel_rating'))        skuPayload.fuel_rating        = g('fuel_rating')
-      if (g('noise_db'))           skuPayload.noise_db           = g('noise_db')
+      // "0" is this source's "no data" sentinel for noise, unlike fuel/wet which are left blank
+      if (g('noise_db') && g('noise_db') !== '0') skuPayload.noise_db = g('noise_db')
       if (g('noise_class'))        skuPayload.noise_class        = g('noise_class')
       if (g('e_mark'))             skuPayload.e_mark             = g('e_mark')
       if (g('dot_code'))           skuPayload.dot_code           = g('dot_code')

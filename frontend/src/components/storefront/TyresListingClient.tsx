@@ -12,7 +12,8 @@ import TyreCard from './TyreCard'
 import MatchedSizeBar from './MatchedSizeBar'
 import TyreCarousel from './TyreCarousel'
 
-const SPEED_RATINGS = ['H', 'V', 'W', 'Y', 'ZR']
+const SPEED_RATINGS  = ['H', 'V', 'W', 'Y', 'ZR']
+const TERRAIN_OPTIONS = ['AT', 'MT', 'HT']
 
 type SortOption = 'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
 
@@ -40,6 +41,7 @@ function buildQuery(filters: InitialParams): string {
   if (filters.xl != null)      p.set('xl',      String(filters.xl))
   if (filters.speed)    p.set('speed',    filters.speed)
   if (filters.app_type) p.set('app_type', filters.app_type)
+  if (filters.terrain)  p.set('terrain',  filters.terrain)
   if (filters.price_min != null) p.set('price_min', String(filters.price_min))
   if (filters.price_max != null) p.set('price_max', String(filters.price_max))
   if (filters.sort !== 'updated_at_desc') p.set('sort', filters.sort)
@@ -218,7 +220,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
   const hasActiveFilters = !!(
     filters.width || filters.profile || filters.rim_size ||
     filters.brand_id || filters.runflat != null || filters.xl != null ||
-    filters.speed || filters.q || hasPriceRange
+    filters.speed || filters.q || filters.terrain || hasPriceRange
   )
 
   const totalPages  = result ? Math.ceil(result.total / PAGE_SIZE) : 1
@@ -244,6 +246,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
   if (filters.runflat)  activeChips.push({ key: 'runflat',  label: 'Runflat',                                      onRemove: () => updateFilter('runflat', undefined) })
   if (filters.xl)       activeChips.push({ key: 'xl',       label: 'XL reinforced',                                onRemove: () => updateFilter('xl', undefined) })
   if (filters.speed)    activeChips.push({ key: 'speed',    label: `Speed ${filters.speed}`,                       onRemove: () => updateFilter('speed', undefined) })
+  if (filters.terrain)  activeChips.push({ key: 'terrain',  label: filters.terrain,                                onRemove: () => updateFilter('terrain', undefined) })
   if (hasPriceRange)    activeChips.push({ key: 'price',    label: `$${filters.price_min ?? facets?.price_range.min ?? 0}–$${filters.price_max ?? facets?.price_range.max ?? ''}`, onRemove: clearPriceRange })
 
   const filterPanel = (
@@ -283,6 +286,22 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
           </div>
         </form>
       </FilterSection>
+
+      <div>
+        <div className="relative">
+          <select
+            value={filters.terrain ?? ''}
+            onChange={e => updateFilter('terrain', e.target.value || undefined)}
+            className="w-full appearance-none rounded-xl border-2 border-primary bg-white px-3 py-2.5 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-2 focus:ring-primary/40 pr-8 cursor-pointer transition-colors"
+          >
+            <option value="">Any Terrain</option>
+            {TERRAIN_OPTIONS.map(t => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-primary pointer-events-none" />
+        </div>
+      </div>
 
       <Accordion type="multiple" defaultValue={['details', 'additional']} className="space-y-1">
         <AccordionItem value="details" className="border-b-0">

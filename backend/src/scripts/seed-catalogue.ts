@@ -399,7 +399,8 @@ async function seedSkus(
       load_range:            row.c_flag   === 'on' ? 'C' : null,
       fuel_rating:           row.eu_label_fuel?.trim()  || null,
       wet_grip:              row.eu_label_wet?.trim()   || null,
-      noise_db:              row.eu_label_noise?.trim() || null,
+      // Source CSV uses "0" as a "no data" sentinel for noise (unlike fuel/wet, which are left blank)
+      noise_db:              (row.eu_label_noise?.trim() && row.eu_label_noise.trim() !== '0') ? row.eu_label_noise.trim() : null,
       country_of_origin:     'Unknown',
       status:                'active',
       total_available_stock: 0,

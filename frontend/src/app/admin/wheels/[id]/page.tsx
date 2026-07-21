@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { Pencil, Trash2, Plus, Save } from 'lucide-react'
+import { Pencil, Trash2, Plus, Save, ImageOff } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { AdminWheelDetail, AdminWheelVariant, WheelBrand, WheelStyleCategory } from '@/types/admin.types'
 
@@ -374,9 +374,13 @@ export default function WheelDetailPage() {
       {/* Header */}
       <div className="mt-6 flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          {wheel.main_image && (
+          {wheel.main_image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={wheel.main_image} alt={wheel.model_name} className="h-16 w-16 object-contain rounded-xl border border-zinc-200" />
+          ) : (
+            <div className="h-16 w-16 flex items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 shrink-0">
+              <ImageOff className="h-6 w-6 text-zinc-300" />
+            </div>
           )}
           <div>
             <h1 className="text-2xl font-semibold text-zinc-900">{wheel.model_name}</h1>
@@ -444,10 +448,35 @@ export default function WheelDetailPage() {
           <div>
             <label className="text-sm font-medium text-zinc-700">Main Image URL</label>
             <Input className="mt-1" value={editForm.main_image} onChange={e => setEditForm(prev => prev ? { ...prev, main_image: e.target.value } : prev)} placeholder="https://..." />
+            {editForm.main_image.trim() && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={editForm.main_image.trim()}
+                alt="Main"
+                className="mt-2 h-20 w-20 object-contain rounded-lg border border-zinc-200 bg-zinc-50"
+                onError={e => { e.currentTarget.style.display = 'none' }}
+                onLoad={e => { e.currentTarget.style.display = 'block' }}
+              />
+            )}
           </div>
           <div className="sm:col-span-2">
             <label className="text-sm font-medium text-zinc-700">Gallery Images</label>
             <Textarea className="mt-1" rows={3} value={editForm.gallery_images} onChange={e => setEditForm(prev => prev ? { ...prev, gallery_images: e.target.value } : prev)} placeholder="One URL per line" />
+            {editForm.gallery_images.trim() && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {editForm.gallery_images.split('\n').map(u => u.trim()).filter(Boolean).map((url, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={`${url}-${i}`}
+                    src={url}
+                    alt={`Gallery ${i + 1}`}
+                    className="h-16 w-16 object-contain rounded-lg border border-zinc-200 bg-zinc-50"
+                    onError={e => { e.currentTarget.style.display = 'none' }}
+                    onLoad={e => { e.currentTarget.style.display = 'block' }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-center pt-6">
             <label className="flex items-center gap-2 text-sm">

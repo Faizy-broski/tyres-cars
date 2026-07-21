@@ -51,12 +51,24 @@ export type WheelListFilters = {
 // ============================================================
 
 export async function listWheelBrands() {
-  const { data, error } = await supabase
-    .from('wheel_brands')
-    .select('wheel_brand_id, brand_name, logo, description, is_active, created_at')
-    .order('brand_name')
-  if (error) throw error
-  return data ?? []
+  // Supabase/PostgREST caps a plain .select() at a default page size (1000
+  // rows) — page through so this can't silently truncate as the brand list grows.
+  const PAGE = 1000
+  const out: unknown[] = []
+  let from = 0
+  for (;;) {
+    const { data, error } = await supabase
+      .from('wheel_brands')
+      .select('wheel_brand_id, brand_name, logo, description, is_active, created_at')
+      .order('brand_name')
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    const rows = data ?? []
+    out.push(...rows)
+    if (rows.length < PAGE) break
+    from += PAGE
+  }
+  return out
 }
 
 export async function createWheelBrand(payload: WheelBrandPayload) {
@@ -176,7 +188,10 @@ export async function getWheel(wheelId: string) {
     `)
     .eq('wheel_id', wheelId)
     .single()
-  if (error) throw error
+  if (error) {
+    if (error.code === 'PGRST116') return null // no matching row — let the controller 404
+    throw error
+  }
   return data
 }
 

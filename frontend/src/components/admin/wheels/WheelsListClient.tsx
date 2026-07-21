@@ -7,7 +7,7 @@ import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react'
 import type { AdminWheel, WheelBrand } from '@/types/admin.types'
 
 const LIMIT = 20
@@ -104,9 +104,13 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
                 <tr key={w.wheel_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer" onClick={() => router.push(`/admin/wheels/${w.wheel_id}`)}>
                   <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-3">
-                      {w.main_image && (
+                      {w.main_image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={w.main_image} alt={w.model_name} className="h-10 w-10 object-contain rounded border border-zinc-100" />
+                      ) : (
+                        <div className="h-10 w-10 flex items-center justify-center rounded border border-zinc-100 bg-zinc-50 shrink-0">
+                          <ImageOff className="h-4 w-4 text-zinc-300" />
+                        </div>
                       )}
                       <div>
                         <div>{w.model_name}</div>
@@ -143,11 +147,11 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
         <div className="mt-4 flex items-center justify-between text-sm text-zinc-600">
           <span>Page {page} of {totalPages}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => router.push(buildHref({ page: String(page - 1) }))}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={page <= 1} onClick={() => router.push(buildHref({ page: String(page - 1) }))}>
+              <ChevronLeft className="h-4 w-4" /> Previous
             </Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => router.push(buildHref({ page: String(page + 1) }))}>
-              <ChevronRight className="h-4 w-4" />
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={page >= totalPages} onClick={() => router.push(buildHref({ page: String(page + 1) }))}>
+              Next <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

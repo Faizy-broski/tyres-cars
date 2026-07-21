@@ -29,6 +29,7 @@ export interface TyreFacets {
   rim_sizes:   number[]
   brands:      { brand_id: string; brand_name: string; brand_slug: string }[]
   price_range: { min: number | null; max: number | null }
+  terrains:    string[]
 }
 
 export interface TyreSearchFilters {
@@ -43,6 +44,7 @@ export interface TyreSearchFilters {
   app_type?:   string  // 'PCR' | '4x4' | 'TBR'
   price_min?:  number
   price_max?:  number
+  terrain?:    string
   sort?:       'price_asc' | 'price_desc' | 'stock_desc' | 'updated_at_desc'
   page?:       number
 }

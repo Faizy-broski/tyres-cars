@@ -84,7 +84,10 @@ export async function getVehicle(vehicleId: string) {
     `)
     .eq('vehicle_id', vehicleId)
     .single()
-  if (error) throw error
+  if (error) {
+    if (error.code === 'PGRST116') return null // no matching row — let the controller 404
+    throw error
+  }
   return data
 }
 

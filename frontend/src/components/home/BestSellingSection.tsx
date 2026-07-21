@@ -53,9 +53,11 @@ export default function BestSellingSection() {
           xl_reinforced,
           runflat,
           total_available_stock,
+          variant_images,
           patterns!inner (
             pattern_name,
             main_image,
+            gallery_images,
             is_active,
             show_on_website,
             brands!inner ( brand_name, is_active, show_on_website )
@@ -87,7 +89,7 @@ export default function BestSellingSection() {
           tyre_size_display:     row.tyre_size_display,
           brand_name:            brand?.brand_name  ?? "",
           pattern_name:          pattern?.pattern_name ?? "",
-          main_image:            pattern?.main_image ?? null,
+          main_image:            pattern?.main_image ?? row.variant_images?.[0] ?? pattern?.gallery_images?.[0] ?? null,
           price_inc_gst:         retail,
           total_available_stock: row.total_available_stock,
           xl_reinforced:         row.xl_reinforced,

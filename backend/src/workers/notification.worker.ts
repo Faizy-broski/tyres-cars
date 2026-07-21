@@ -33,6 +33,7 @@ export type NotificationJobData =
   | { type: 'fitment_job_completed'; customer_email: string; order_number: string }
   | { type: 'stock_low_alert';       admin_email: string; product_id: string; sku: string; stock: number }
   | { type: 'supplier_import_done';  admin_email: string; supplier_id: string; results: Record<string, number> }
+  | { type: 'price_match_request';   customer_name: string; customer_email: string; customer_phone?: string; message: string; product_id: string; sku: string; product_name?: string; tyre_size_display?: string; price?: number; product_url?: string }
 
 // ── Nodemailer email sender ────────────────────────────────────
 async function sendEmail(to: string, subject: string, html: string) {
@@ -89,6 +90,18 @@ function tplFitterAssignment(d: Extract<NotificationJobData, { type: 'fitment_jo
   </div>`
 }
 
+function tplPriceMatchRequest(d: Extract<NotificationJobData, { type: 'price_match_request' }>): string {
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>Price Match Request</h2>
+    <p><strong>${d.product_name ?? d.sku}</strong>${d.tyre_size_display ? ` — ${d.tyre_size_display}` : ''}</p>
+    <p>SKU: ${d.sku} &nbsp;|&nbsp; Product ID: ${d.product_id}${d.price != null ? ` &nbsp;|&nbsp; Our price: $${d.price.toFixed(2)}` : ''}</p>
+    ${d.product_url ? `<p><a href="${d.product_url}" style="color:#2563eb">View product →</a></p>` : ''}
+    <hr style="border:none;border-top:1px solid #e4e4e7;margin:16px 0" />
+    <p>Customer: <strong>${d.customer_name}</strong> — ${d.customer_email}${d.customer_phone ? ` — ${d.customer_phone}` : ''}</p>
+    <p style="white-space:pre-wrap">${d.message}</p>
+  </div>`
+}
+
 // ── Worker ─────────────────────────────────────────────────────
 export const notificationWorker = new Worker<NotificationJobData>(
   'notification',
@@ -116,6 +129,13 @@ export const notificationWorker = new Worker<NotificationJobData>(
         break
       case 'supplier_import_done':
         console.log(`[Notification] Import done for ${data.supplier_id}:`, data.results)
+        break
+      case 'price_match_request':
+        await sendEmail(
+          process.env.SUPPORT_EMAIL ?? 'support@tyrevault.com.au',
+          `Price Match Request — ${data.sku}`,
+          tplPriceMatchRequest(data)
+        )
         break
     }
   },

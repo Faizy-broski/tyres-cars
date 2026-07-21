@@ -13,13 +13,21 @@ import type { Pattern, SkuListItem } from '@/types/admin.types'
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
-function Field({ label, value }: { label: string; value?: string | number | null }) {
+function Field({ label, value, html }: { label: string; value?: string | number | null; html?: boolean }) {
+  const hasValue = value !== null && value !== undefined && value !== ''
   return (
     <div>
       <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-0.5">{label}</p>
-      <p className="text-sm text-zinc-800 whitespace-pre-line">
-        {value !== null && value !== undefined && value !== '' ? String(value) : <span className="text-zinc-300">—</span>}
-      </p>
+      {hasValue && html ? (
+        <div
+          className="text-sm text-zinc-800 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1"
+          dangerouslySetInnerHTML={{ __html: String(value) }}
+        />
+      ) : (
+        <p className="text-sm text-zinc-800 whitespace-pre-line">
+          {hasValue ? String(value) : <span className="text-zinc-300">—</span>}
+        </p>
+      )}
     </div>
   )
 }
@@ -224,10 +232,10 @@ export default function ProductDetailPage() {
           {(pattern.pattern_short_description || pattern.pattern_description || pattern.tyre_overview || pattern.features || pattern.warranty_information) && (
             <Section title="Descriptions">
               {pattern.pattern_short_description && <Field label="Short Description" value={pattern.pattern_short_description} />}
-              {pattern.pattern_description        && <Field label="Full Description"  value={pattern.pattern_description} />}
-              {pattern.tyre_overview              && <Field label="Tyre Overview"     value={pattern.tyre_overview} />}
-              {pattern.features                   && <Field label="Key Features"      value={pattern.features} />}
-              {pattern.warranty_information       && <Field label="Warranty Info"     value={pattern.warranty_information} />}
+              {pattern.pattern_description        && <Field label="Full Description"  value={pattern.pattern_description} html />}
+              {pattern.tyre_overview              && <Field label="Tyre Overview"     value={pattern.tyre_overview} html />}
+              {pattern.features                   && <Field label="Key Features"      value={pattern.features} html />}
+              {pattern.warranty_information       && <Field label="Warranty Info"     value={pattern.warranty_information} html />}
             </Section>
           )}
 

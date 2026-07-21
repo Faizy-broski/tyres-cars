@@ -111,11 +111,11 @@ export default function VehiclesClient({ vehicles, makes, total, page, search, m
         <div className="mt-4 flex items-center justify-between text-sm text-zinc-600">
           <span>Page {page} of {totalPages}</span>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => router.push(buildHref({ page: String(page - 1) }))}>
-              <ChevronLeft className="h-4 w-4" />
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={page <= 1} onClick={() => router.push(buildHref({ page: String(page - 1) }))}>
+              <ChevronLeft className="h-4 w-4" /> Previous
             </Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => router.push(buildHref({ page: String(page + 1) }))}>
-              <ChevronRight className="h-4 w-4" />
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={page >= totalPages} onClick={() => router.push(buildHref({ page: String(page + 1) }))}>
+              Next <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </div>

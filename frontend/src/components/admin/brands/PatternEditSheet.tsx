@@ -9,6 +9,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import { useAdminBrandsAll, type AdminPattern } from '@/lib/query/hooks'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const TERRAIN_OPTIONS = ['AT', 'MT', 'HT']
 
 type PatternWithBrand = AdminPattern & { brand_name: string }
 
@@ -23,6 +24,7 @@ export function PatternEditSheet({ pattern, open, onClose, onSaved }: Props) {
   const [name,      setName]      = useState('')
   const [brandId,   setBrandId]   = useState('')
   const [image,     setImage]     = useState('')
+  const [terrain,   setTerrain]   = useState('')
   const [isActive,  setIsActive]  = useState(true)
   const [showOnWeb, setShowOnWeb] = useState(true)
   const [saving,    setSaving]    = useState(false)
@@ -36,6 +38,7 @@ export function PatternEditSheet({ pattern, open, onClose, onSaved }: Props) {
       setName(pattern.pattern_name)
       setBrandId(pattern.brand_id)
       setImage(pattern.main_image ?? '')
+      setTerrain(pattern.terrain_type ?? '')
       setIsActive(pattern.is_active)
       setShowOnWeb(pattern.show_on_website)
     }
@@ -65,6 +68,7 @@ export function PatternEditSheet({ pattern, open, onClose, onSaved }: Props) {
           patternName:   name.trim(),
           brandId:       brandId || pattern.brand_id,
           mainImage:     image || null,
+          terrainType:   terrain || null,
           isActive:      isActive,
           showOnWebsite: showOnWeb,
         }),
@@ -155,6 +159,21 @@ export function PatternEditSheet({ pattern, open, onClose, onSaved }: Props) {
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden"
           onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0])} />
+      </div>
+
+      {/* Terrain */}
+      <div>
+        <label className="block text-xs font-medium text-zinc-700 mb-1">Terrain</label>
+        <select
+          value={terrain}
+          onChange={e => setTerrain(e.target.value)}
+          className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
+        >
+          <option value="">— None —</option>
+          {TERRAIN_OPTIONS.map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
       </div>
 
       {/* Booleans */}

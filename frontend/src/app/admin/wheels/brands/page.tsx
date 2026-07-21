@@ -10,11 +10,12 @@ import { Textarea } from '@/components/ui/textarea'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { Pencil, Trash2, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { WheelBrand } from '@/types/admin.types'
 
-const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const API   = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+const LIMIT = 20
 
 type FormState = {
   brand_name:  string
@@ -141,6 +142,7 @@ export default function WheelBrandsPage() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing]       = useState<(FormState & { wheel_brand_id?: string }) | null>(null)
   const [deleting, setDeleting]     = useState<WheelBrand | null>(null)
+  const [page, setPage]             = useState(1)
 
   useEffect(() => {
     async function load() {
@@ -186,6 +188,10 @@ export default function WheelBrandsPage() {
     })
     setDialogOpen(false)
   }
+
+  const totalPages   = Math.max(1, Math.ceil(brands.length / LIMIT))
+  const currentPage  = Math.min(page, totalPages)
+  const pagedBrands  = brands.slice((currentPage - 1) * LIMIT, currentPage * LIMIT)
 
   async function confirmDelete() {
     if (!deleting) return
@@ -239,7 +245,7 @@ export default function WheelBrandsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {brands.map(b => (
+              {pagedBrands.map(b => (
                 <tr key={b.wheel_brand_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
                   <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-3">
@@ -272,6 +278,20 @@ export default function WheelBrandsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-zinc-600">
+          <span>Page {currentPage} of {totalPages}</span>
+          <div className="flex gap-2">
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={currentPage <= 1} onClick={() => setPage(p => p - 1)}>
+              <ChevronLeft className="h-4 w-4" /> Previous
+            </Button>
+            <Button size="sm" className="gap-1 bg-primary text-zinc-900 hover:bg-primary/90" disabled={currentPage >= totalPages} onClick={() => setPage(p => p + 1)}>
+              Next <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
 
