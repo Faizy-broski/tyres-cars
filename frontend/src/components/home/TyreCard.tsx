@@ -1,8 +1,10 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, ImageOff } from "lucide-react";
+import { ShoppingCart, ImageOff, Mail } from "lucide-react";
 import { useCartStore } from "@/stores/cart.store";
+
+const SUPPORT_EMAIL = "support@tyrevault.com.au";
 
 export interface BestSellerSku {
   product_id:        string;
@@ -106,15 +108,26 @@ export default function TyreCard({ item }: { item: BestSellerSku }) {
 
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={!inStock || item.price_inc_gst == null}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Add to cart
-          </button>
+          {!inStock ? (
+            <a
+              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${item.pattern_name} ${item.tyre_size_display}`)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
+            >
+              <Mail className="w-4 h-4" />
+              Send Inquiry
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAddToCart}
+              disabled={item.price_inc_gst == null}
+              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Add to cart
+            </button>
+          )}
           <Link
             href={href}
             className="w-full flex items-center justify-center rounded-lg border-2 border-primary py-2 text-sm font-bold text-zinc-900 hover:bg-primary/10 transition-colors"
