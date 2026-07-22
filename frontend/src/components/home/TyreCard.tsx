@@ -3,8 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ShoppingCart, ImageOff, Mail } from "lucide-react";
 import { useCartStore } from "@/stores/cart.store";
-
-const SUPPORT_EMAIL = "support@tyrevault.com.au";
+import InquiryModal from "@/components/storefront/InquiryModal";
 
 export interface BestSellerSku {
   product_id:        string;
@@ -109,14 +108,22 @@ export default function TyreCard({ item }: { item: BestSellerSku }) {
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
           {!inStock ? (
-            <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${item.pattern_name} ${item.tyre_size_display}`)}`}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
-            >
-              <Mail className="w-4 h-4" />
-              Send Inquiry
-            </a>
+            <InquiryModal
+              productId={item.product_id}
+              sku={item.sku}
+              productName={`${item.brand_name} ${item.pattern_name}`}
+              tyreSizeDisplay={item.tyre_size_display}
+              productUrl={href}
+              trigger={
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
+                >
+                  <Mail className="w-4 h-4" />
+                  Send Inquiry
+                </button>
+              }
+            />
           ) : (
             <button
               type="button"

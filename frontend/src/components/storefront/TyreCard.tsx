@@ -3,8 +3,7 @@
 import Image from 'next/image'
 import { ShoppingCart, ImageOff, Mail } from 'lucide-react'
 import type { TyreSku } from '@/lib/supabase/search.types'
-
-const SUPPORT_EMAIL = 'support@tyrevault.com.au'
+import InquiryModal from '@/components/storefront/InquiryModal'
 
 export function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) return <span className="text-xs font-semibold text-red-500">Out of stock</span>
@@ -116,13 +115,22 @@ export default function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCa
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
           {hit.total_stock === 0 ? (
-            <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${hit.pattern_name} ${hit.tyre_size_display}`)}`}
-              className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
-            >
-              <Mail className="w-4 h-4" />
-              Send Inquiry
-            </a>
+            <InquiryModal
+              productId={hit.product_id}
+              sku={hit.sku}
+              productName={`${hit.brand_name} ${hit.pattern_name}`}
+              tyreSizeDisplay={hit.tyre_size_display}
+              productUrl={href}
+              trigger={
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
+                >
+                  <Mail className="w-4 h-4" />
+                  Send Inquiry
+                </button>
+              }
+            />
           ) : (
             <button
               type="button"

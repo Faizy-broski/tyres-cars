@@ -21,6 +21,14 @@ const priceMatchLimiter = rateLimit({
   message:        { error: 'Too many requests — please wait a moment and try again.' },
 })
 
+const inquiryLimiter = rateLimit({
+  windowMs:       60_000,
+  max:            5,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  message:        { error: 'Too many requests — please wait a moment and try again.' },
+})
+
 router.post('/track', trackingLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { order_number, email } = req.body as { order_number?: string; email?: string }
@@ -69,6 +77,37 @@ router.post('/price-match', priceMatchLimiter, async (req: Request, res: Respons
       product_name,
       tyre_size_display,
       price,
+      product_url,
+    }).catch(() => {})
+
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+})
+
+router.post('/product-inquiry', inquiryLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const {
+      name, email, phone, message,
+      product_id, sku, product_name, tyre_size_display, product_url,
+    } = req.body as {
+      name?: string; email?: string; phone?: string; message?: string
+      product_id?: string; sku?: string; product_name?: string; tyre_size_display?: string; product_url?: string
+    }
+
+    if (!name || !email || !product_id) {
+      return res.status(400).json({ error: 'name, email and product_id are required' })
+    }
+
+    notificationQueue?.add('product_inquiry_request', {
+      type:              'product_inquiry_request',
+      customer_name:     name,
+      customer_email:    email,
+      customer_phone:    phone,
+      message,
+      product_id,
+      sku:               sku ?? '',
+      product_name,
+      tyre_size_display,
       product_url,
     }).catch(() => {})
 

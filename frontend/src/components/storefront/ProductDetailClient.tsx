@@ -12,6 +12,9 @@ import {
 } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
+import ImageMagnifier from '@/components/storefront/ImageMagnifier'
+import ImageLightbox from '@/components/storefront/ImageLightbox'
+import InquiryModal from '@/components/storefront/InquiryModal'
 import { DiscountBadge, RibbonBadge } from '@/components/storefront/TyreCard'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
@@ -20,8 +23,6 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-
-const SUPPORT_EMAIL = 'support@tyrevault.com.au'
 
 interface Sibling {
   product_id:        string
@@ -132,6 +133,7 @@ function SpecRow({ label, value, icon: Icon }: {
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const [activeImg, setActiveImg] = useState(0)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
   const [fitterOpen, setFitterOpen] = useState(false)
   const [qty, setQty] = useState(1)
   const { addItem, openCart, fittingSelection } = useCartStore()
@@ -194,19 +196,16 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.1fr_340px] gap-8 items-start">
         {/* Column 1 — Gallery */}
         <div className="min-w-0 flex flex-col gap-3">
-          <div className="group aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden">
+          <div className="aspect-[4/3] rounded-2xl bg-zinc-100 relative overflow-hidden">
             <div className="absolute top-3 left-3 z-10 flex flex-col items-start gap-1.5">
               {product.pattern_name && <RibbonBadge tone="premium" label={product.pattern_name} />}
               {hasPromo && <DiscountBadge original={wasPrice!} promo={nowPrice!} />}
             </div>
             {images.length > 0 && (images[activeImg]?.startsWith('http') || images[activeImg]?.startsWith('/')) ? (
-              <Image
+              <ImageMagnifier
                 src={images[activeImg]}
                 alt={product.tyre_size_display}
-                fill
-                className="object-contain p-8 transition-transform duration-300 group-hover:scale-110"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                priority
+                onClick={() => setLightboxOpen(true)}
               />
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-zinc-50 to-zinc-100/50">
@@ -237,6 +236,15 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             </div>
           )}
         </div>
+
+        <ImageLightbox
+          images={images}
+          activeIndex={activeImg}
+          onActiveIndexChange={setActiveImg}
+          open={lightboxOpen}
+          onOpenChange={setLightboxOpen}
+          alt={product.tyre_size_display}
+        />
 
         {/* Column 2 — Product info & pricing */}
         <div className="min-w-0 space-y-5">
@@ -369,13 +377,24 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             <p className="text-xs text-zinc-500 leading-relaxed mb-3">
               Our team is here to help you. We&apos;ll get back to you shortly.
             </p>
-            <a
-              href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Enquiry about ${product.pattern_name ?? product.sku} ${product.tyre_size_display}`)}`}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-700 hover:border-primary hover:text-primary transition-colors"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              Send an Enquiry
-            </a>
+            <InquiryModal
+              productId={product.product_id}
+              sku={product.sku}
+              productName={[product.brand_name, product.pattern_name].filter(Boolean).join(' ') || product.sku}
+              tyreSizeDisplay={product.tyre_size_display}
+              productUrl={typeof window !== 'undefined' && product.product_slug
+                ? `${window.location.origin}/tyres/${product.product_slug}`
+                : product.product_slug ? `/tyres/${product.product_slug}` : undefined}
+              trigger={
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 bg-white py-2.5 text-xs font-semibold text-zinc-700 hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Send an Enquiry
+                </button>
+              }
+            />
           </div>
         </div>
       </div>
