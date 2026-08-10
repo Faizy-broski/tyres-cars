@@ -60,9 +60,7 @@ export async function listVehicles(filters: VehicleListFilters = {}) {
   let query = supabase
     .from('vehicles')
     .select('vehicle_id, make, model, year_from, year_to, series, variant, body_type, created_at', { count: 'exact' })
-    .order('make')
-    .order('model')
-    .order('year_from')
+    .order('created_at', { ascending: false })
     .range(from, to)
 
   if (make)   query = query.eq('make', make)

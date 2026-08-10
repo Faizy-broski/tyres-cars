@@ -129,7 +129,7 @@ export async function listWheels(filters: WheelListFilters = {}) {
       wheel_brands ( brand_name ),
       wheel_variants ( wheel_variant_id )
     `, { count: 'exact' })
-    .order('model_name')
+    .order('created_at', { ascending: false })
     .range(from, to)
 
   if (search) {

@@ -1,12 +1,13 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { VehicleAddSheet } from './VehicleAddSheet'
+import { VehicleEditSheet } from './VehicleEditSheet'
 import type { AdminVehicle } from '@/types/admin.types'
 
 const LIMIT = 50
@@ -23,6 +24,15 @@ type Props = {
 export default function VehiclesClient({ vehicles, makes, total, page, search, make }: Props) {
   const router   = useRouter()
   const pathname = usePathname()
+
+  const [addOpen,      setAddOpen]      = useState(false)
+  const [editVehicleId, setEditVehicleId] = useState<string | null>(null)
+
+  function refresh() {
+    setAddOpen(false)
+    setEditVehicleId(null)
+    router.refresh()
+  }
 
   const totalPages = Math.ceil(total / LIMIT)
 
@@ -41,11 +51,9 @@ export default function VehiclesClient({ vehicles, makes, total, page, search, m
           <h1 className="text-2xl font-semibold text-zinc-900">Vehicle Database</h1>
           <p className="text-sm text-zinc-500 mt-1">{total} vehicle{total !== 1 ? 's' : ''}</p>
         </div>
-        <Link href="/admin/vehicles/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" /> Add Vehicle
-          </Button>
-        </Link>
+        <Button className="gap-2" onClick={() => setAddOpen(true)}>
+          <Plus className="h-4 w-4" /> Add Vehicle
+        </Button>
       </div>
 
       {/* Filters */}
@@ -87,8 +95,8 @@ export default function VehiclesClient({ vehicles, makes, total, page, search, m
               {vehicles.map(v => (
                 <tr
                   key={v.vehicle_id}
-                  className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
-                  onClick={() => router.push(`/admin/vehicles/${v.vehicle_id}`)}
+                  className="odd:bg-white even:bg-zinc-50 hover:bg-zinc-200! transition-colors cursor-pointer"
+                  onClick={() => setEditVehicleId(v.vehicle_id)}
                 >
                   <td className="px-4 py-3 font-medium text-zinc-900">{v.make}</td>
                   <td className="px-4 py-3 text-zinc-800">{v.model}</td>
@@ -120,6 +128,19 @@ export default function VehiclesClient({ vehicles, makes, total, page, search, m
           </div>
         </div>
       )}
+
+      <VehicleAddSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={refresh}
+      />
+
+      <VehicleEditSheet
+        vehicleId={editVehicleId}
+        open={!!editVehicleId}
+        onClose={() => setEditVehicleId(null)}
+        onSaved={refresh}
+      />
     </div>
   )
 }

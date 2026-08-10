@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, ChevronLeft, ChevronRight, ImageOff } from 'lucide-react'
+import { WheelAddSheet } from './WheelAddSheet'
+import { WheelEditSheet } from './WheelEditSheet'
 import type { AdminWheel, WheelBrand } from '@/types/admin.types'
 
 const LIMIT = 20
@@ -32,6 +34,15 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
   const router   = useRouter()
   const pathname = usePathname()
 
+  const [addOpen,     setAddOpen]     = useState(false)
+  const [editWheelId, setEditWheelId] = useState<string | null>(null)
+
+  function refresh() {
+    setAddOpen(false)
+    setEditWheelId(null)
+    router.refresh()
+  }
+
   const totalPages = Math.ceil(total / LIMIT)
 
   const buildHref = useCallback((extra: Record<string, string>) => {
@@ -53,11 +64,9 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
           <Link href="/admin/wheels/brands">
             <Button variant="outline" size="sm">Manage Brands</Button>
           </Link>
-          <Link href="/admin/wheels/new">
-            <Button className="gap-2">
-              <Plus className="h-4 w-4" /> Add Wheel
-            </Button>
-          </Link>
+          <Button className="gap-2" onClick={() => setAddOpen(true)}>
+            <Plus className="h-4 w-4" /> Add Wheel
+          </Button>
         </div>
       </div>
 
@@ -101,7 +110,7 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
             </thead>
             <tbody className="divide-y divide-zinc-200">
               {wheels.map(w => (
-                <tr key={w.wheel_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer" onClick={() => router.push(`/admin/wheels/${w.wheel_id}`)}>
+                <tr key={w.wheel_id} className="odd:bg-white even:bg-zinc-50 hover:bg-zinc-200! transition-colors cursor-pointer" onClick={() => setEditWheelId(w.wheel_id)}>
                   <td className="px-4 py-3 font-medium text-zinc-900">
                     <div className="flex items-center gap-3">
                       {w.main_image ? (
@@ -156,6 +165,21 @@ export default function WheelsListClient({ wheels, brands, total, page, search, 
           </div>
         </div>
       )}
+
+      <WheelAddSheet
+        open={addOpen}
+        brands={brands}
+        onClose={() => setAddOpen(false)}
+        onSaved={refresh}
+      />
+
+      <WheelEditSheet
+        wheelId={editWheelId}
+        brands={brands}
+        open={!!editWheelId}
+        onClose={() => setEditWheelId(null)}
+        onSaved={refresh}
+      />
     </div>
   )
 }
