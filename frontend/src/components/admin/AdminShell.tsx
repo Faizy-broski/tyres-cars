@@ -12,8 +12,25 @@ interface Props {
   children: React.ReactNode
 }
 
+const COLLAPSE_KEY = 'admin-sidebar-collapsed'
+
 export default function AdminShell({ userEmail, children }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+
+  // Restore the desktop collapse preference (rail vs full width) once on mount.
+  useEffect(() => {
+    const stored = window.localStorage.getItem(COLLAPSE_KEY)
+    if (stored === '1') setSidebarCollapsed(true)
+  }, [])
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed(prev => {
+      const next = !prev
+      window.localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0')
+      return next
+    })
+  }
 
   // Prevent the browser's native body scrollbar while admin layout is active.
   // The only scroll that should exist is on <main>.
@@ -41,6 +58,8 @@ export default function AdminShell({ userEmail, children }: Props) {
         userEmail={userEmail}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebarCollapsed}
       />
 
       <div className="flex flex-col flex-1 overflow-hidden min-w-0">

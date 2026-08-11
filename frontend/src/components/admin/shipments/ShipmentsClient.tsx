@@ -1,71 +1,102 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname } from 'next/navigation'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { SplitView } from '@/components/admin/SplitView'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ShipmentSheet } from '@/components/admin/shipments/ShipmentSheet'
-import { toastError, toastSuccess } from '@/lib/toast'
-import { Plus, Trash2 } from 'lucide-react'
-import type { ShipmentListItem } from '@/types/admin.types'
+import { ShipmentFormPanel } from './ShipmentFormPanel'
+import { Plus } from 'lucide-react'
+import { toastSuccess, toastError } from '@/lib/toast'
+import { createClient } from '@/lib/supabase/client'
+import type { ShipmentListItem, ShipmentStatus } from '@/types/admin.types'
 
-const API   = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-const LIMIT = 20
-
-const STATUSES = ['all', 'planned', 'shipped', 'arrived', 'received', 'cancelled']
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 const STATUS_STYLE: Record<string, string> = {
-  planned:   'bg-zinc-100 text-zinc-600',
-  shipped:   'bg-blue-50 text-blue-700',
-  arrived:   'bg-purple-50 text-purple-700',
-  received:  'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-700',
+  planned:    'bg-zinc-100 text-zinc-600',
+  in_transit: 'bg-blue-50 text-blue-700',
+  customs:    'bg-amber-50 text-amber-700',
+  delivered:  'bg-green-50 text-green-700',
+  cancelled:  'bg-red-50 text-red-700',
 }
 
 const CLEARANCE_STYLE: Record<string, string> = {
-  pending: 'bg-amber-50 text-amber-700',
-  cleared: 'bg-green-50 text-green-700',
-  delayed: 'bg-red-50 text-red-700',
+  pending:   'bg-zinc-100 text-zinc-600',
+  submitted: 'bg-blue-50 text-blue-700',
+  cleared:   'bg-green-50 text-green-700',
+  held:      'bg-red-50 text-red-700',
 }
 
-function fmtDate(d: string | null) {
+function fmtDate(d: string | null | undefined) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+  return new Date(d).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 type Props = {
-  accessToken: string
-  shipments: ShipmentListItem[]
-  total: number
+  shipments:  ShipmentListItem[]
+  total:      number
   totalPages: number
-  page: number
-  status: string
+  page:       number
+  status:     string
 }
 
-export default function ShipmentsClient({ accessToken, shipments, total, totalPages, page, status }: Props) {
-  const router = useRouter()
+export default function ShipmentsClient({
+  shipments,
+  total,
+  totalPages,
+  page,
+  status,
+}: Props) {
+  const router   = useRouter()
+  const pathname = usePathname()
 
-  const [sheetOpen, setSheetOpen]       = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<ShipmentListItem | null>(null)
-  const [deleting, setDeleting]         = useState(false)
+  const [selectedId, setSelectedId]         = useState<string | null>(null)
+  const [selectedShipment, setSelectedShipment] = useState<ShipmentListItem | null>(null)
+  const [deleteTarget, setDeleteTarget]     = useState<ShipmentListItem | null>(null)
+  const [deleting, setDeleting]             = useState(false)
 
-  function navTo(nextStatus: string, nextPage: number) {
-    const params = new URLSearchParams({ page: String(nextPage) })
-    if (nextStatus !== 'all') params.set('status', nextStatus)
-    router.push(`/admin/shipments?${params}`)
+  function selectShipment(s: ShipmentListItem) {
+    setSelectedId(s.shipment_id)
+    setSelectedShipment(s)
+  }
+
+  function handleNewShipment() {
+    setSelectedId(null)
+    setSelectedShipment(null)
+  }
+
+  function handleSaved() {
+    router.refresh()
+  }
+
+  function navTo(st: string, pg = 1) {
+    const p = new URLSearchParams()
+    if (st) p.set('status', st)
+    if (pg > 1) p.set('page', String(pg))
+    const q = p.toString()
+    router.push(q ? `${pathname}?${q}` : pathname)
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
     try {
+      const { data: { session } } = await createClient().auth.getSession()
       const res = await fetch(`${API}/api/admin/shipments/${deleteTarget.shipment_id}`, {
-        method:  'DELETE',
-        headers: { Authorization: `Bearer ${accessToken}` },
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${session?.access_token ?? ''}` },
       })
-      if (!res.ok) throw new Error('Delete failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Delete failed')
+      }
       toastSuccess('Shipment deleted')
+      if (selectedId === deleteTarget.shipment_id) {
+        setSelectedId(null)
+        setSelectedShipment(null)
+      }
       setDeleteTarget(null)
       router.refresh()
     } catch (err) {
@@ -76,120 +107,160 @@ export default function ShipmentsClient({ accessToken, shipments, total, totalPa
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <AdminBreadcrumb crumbs={[{ label: 'Shipments' }]} />
-          <h1 className="mt-2 text-xl font-semibold text-zinc-900">Inbound Shipments</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Container &amp; freight tracking from suppliers</p>
-        </div>
-        <Button onClick={() => setSheetOpen(true)} className="flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> New Shipment
-        </Button>
-      </div>
+    <div className="p-4 sm:p-6 space-y-5">
+      <AdminBreadcrumb crumbs={[{ label: 'Shipments' }]} />
 
-      {/* Status filter tabs */}
-      <div className="flex gap-1 flex-wrap mb-4">
-        {STATUSES.map(s => (
+      <SplitView
+        title="Inbound Shipments"
+        description="Track sea/air containers and port clearance status"
+        panelWidthClassName="w-full lg:w-[480px] xl:w-[540px]"
+        headerAction={
           <button
-            key={s}
             type="button"
-            onClick={() => navTo(s, 1)}
-            className={`px-3 py-1 rounded-full text-xs font-medium capitalize transition-colors ${
-              status === s ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
-            }`}
+            onClick={handleNewShipment}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-primary/90 transition-colors shadow-sm"
           >
-            {s}
+            <Plus className="w-4 h-4" /> New Shipment
           </button>
-        ))}
-      </div>
+        }
+        list={
+          <div className="space-y-4">
+            {/* Status pills */}
+            <div className="flex flex-wrap gap-1.5">
+              {(['', 'planned', 'in_transit', 'customs', 'delivered', 'cancelled'] as const).map(s => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => navTo(s, 1)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors capitalize ${
+                    status === s
+                      ? 'bg-zinc-900 text-white'
+                      : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'
+                  }`}
+                >
+                  {s ? s.replace('_', ' ') : 'All Shipments'}
+                </button>
+              ))}
+            </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 bg-zinc-50">
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Container</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vessel</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">PO</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Warehouse</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Clearance</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETD</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ETA</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Arrived</th>
-              <th className="px-4 py-3" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200">
-            {shipments.length === 0 && (
-              <tr><td colSpan={10} className="px-4 py-10 text-center text-zinc-400">No shipments found</td></tr>
-            )}
-            {shipments.map(s => (
-              <tr
-                key={s.shipment_id}
-                className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer"
-                onClick={() => router.push(`/admin/shipments/${s.shipment_id}`)}
-              >
-                <td className="px-4 py-3 font-mono text-xs font-medium text-zinc-900">
-                  {s.container_number ?? <span className="text-zinc-400">—</span>}
-                </td>
-                <td className="px-4 py-3 text-zinc-600 text-xs">{s.vessel_name ?? '—'}</td>
-                <td className="px-4 py-3 text-xs">
-                  {s.purchase_orders
-                    ? <span className="text-primary font-mono">{s.purchase_orders.po_number}</span>
-                    : <span className="text-zinc-400">—</span>}
-                </td>
-                <td className="px-4 py-3 text-zinc-500 text-xs">{s.warehouses?.warehouse_name ?? '—'}</td>
-                <td className="px-4 py-3">
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${STATUS_STYLE[s.shipment_status] ?? 'bg-zinc-100 text-zinc-600'}`}>
-                    {s.shipment_status}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {s.clearance_status
-                    ? <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${CLEARANCE_STYLE[s.clearance_status] ?? 'bg-zinc-100 text-zinc-600'}`}>{s.clearance_status}</span>
-                    : <span className="text-zinc-400 text-xs">—</span>}
-                </td>
-                <td className="px-4 py-3 text-zinc-500 text-xs">{fmtDate(s.etd)}</td>
-                <td className="px-4 py-3 text-zinc-500 text-xs">{fmtDate(s.eta)}</td>
-                <td className="px-4 py-3 text-zinc-500 text-xs">{fmtDate(s.arrival_date)}</td>
-                <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                  {['planned', 'cancelled'].includes(s.shipment_status) && (
-                    <button type="button" onClick={() => setDeleteTarget(s)} className="text-zinc-400 hover:text-red-600">
-                      <Trash2 className="w-4 h-4" />
+            {/* Table */}
+            <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-zinc-50">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Container #</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Linked PO</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Warehouse</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Vessel</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">ETD / ETA</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Clearance</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200">
+                    {shipments.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-zinc-400 text-sm">
+                          No shipments found
+                        </td>
+                      </tr>
+                    ) : (
+                      shipments.map(s => {
+                        const isSelected = selectedId === s.shipment_id
+                        return (
+                          <tr
+                            key={s.shipment_id}
+                            className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer ${
+                              isSelected ? '!bg-primary/10' : ''
+                            }`}
+                            onClick={() => selectShipment(s)}
+                          >
+                            <td className="px-4 py-3 font-mono text-xs font-semibold text-zinc-900 whitespace-nowrap">
+                              {s.container_number || '—'}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-zinc-600 whitespace-nowrap">
+                              {s.purchase_orders?.po_number ?? '—'}
+                            </td>
+                            <td className="px-4 py-3 text-zinc-600 text-xs whitespace-nowrap max-w-[130px] truncate" title={s.warehouses?.warehouse_name ?? ''}>
+                              {s.warehouses?.warehouse_name ?? '—'}
+                            </td>
+                            <td className="px-4 py-3 text-zinc-700 text-xs whitespace-nowrap max-w-[130px] truncate" title={s.vessel_name ?? ''}>
+                              {s.vessel_name || '—'}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider ${STATUS_STYLE[s.shipment_status] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                                {s.shipment_status.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-zinc-500 text-xs whitespace-nowrap">
+                              <div>{fmtDate(s.etd)} → {fmtDate(s.eta)}</div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {s.clearance_status ? (
+                                <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium capitalize ${CLEARANCE_STYLE[s.clearance_status] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                                  {s.clearance_status}
+                                </span>
+                              ) : <span className="text-zinc-400 text-xs">—</span>}
+                            </td>
+                          </tr>
+                        )
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 text-xs text-zinc-500 bg-white">
+                  <span>{total} total shipments</span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => navTo(status, page - 1)}
+                      className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+                    >
+                      ← Prev
                     </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-100">
-            <span className="text-xs text-zinc-500">{total} total</span>
-            <div className="flex gap-1">
-              <button type="button" disabled={page <= 1} onClick={() => navTo(status, page - 1)}
-                className="px-2 py-1 text-xs rounded border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50">← Prev</button>
-              <span className="px-2 py-1 text-xs text-zinc-500">{page} / {totalPages}</span>
-              <button type="button" disabled={page >= totalPages} onClick={() => navTo(status, page + 1)}
-                className="px-2 py-1 text-xs rounded border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50">Next →</button>
+                    <span className="px-2 py-1 font-medium text-zinc-700">{page} / {totalPages}</span>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => navTo(status, page + 1)}
+                      className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        )}
-      </div>
-
-      <ShipmentSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSaved={() => router.refresh()}
+        }
+        panel={
+          <ShipmentFormPanel
+            key={selectedId ?? 'new'}
+            mode={selectedId ? 'edit' : 'create'}
+            shipmentId={selectedId ?? undefined}
+            initialShipment={selectedShipment}
+            onSaved={handleSaved}
+            onRequestDelete={() => {
+              const target = shipments.find(s => s.shipment_id === selectedId) ?? selectedShipment
+              if (target) setDeleteTarget(target)
+            }}
+          />
+        }
       />
 
+      {/* Delete confirmation dialog */}
       <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Delete Shipment?</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Delete Shipment?</DialogTitle>
+          </DialogHeader>
           <p className="text-sm text-zinc-600 mt-1">
-            Shipment <strong>{deleteTarget?.container_number ?? deleteTarget?.shipment_id.slice(0, 8)}</strong> will be permanently deleted.
+            Delete shipment <strong>{deleteTarget?.container_number || deleteTarget?.shipment_id}</strong>? Only planned or cancelled shipments can be deleted.
           </p>
           <div className="flex gap-3 justify-end mt-4">
             <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>

@@ -1,19 +1,16 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAdminWarehouses } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
-import { Badge } from '@/components/ui/badge'
-import { BoolToggle } from '@/components/admin/BoolToggle'
-import { Sheet } from '@/components/ui/sheet'
-import { WarehouseAddSheet } from '@/components/admin/warehouses/WarehouseAddSheet'
-import { Button } from '@/components/ui/button'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Pencil, Trash2, Plus } from 'lucide-react'
+import { SplitView } from '@/components/admin/SplitView'
+import { StatusSelect } from '@/components/admin/StatusSelect'
+import { WarehouseFormPanel, EMPTY_WAREHOUSE_FORM, warehouseToForm, type WarehouseFormState } from '@/components/admin/warehouses/WarehouseFormPanel'
+import { Trash2 } from 'lucide-react'
 import { toastSuccess, toastError } from '@/lib/toast'
 import type { Warehouse } from '@/types/admin.types'
 import { BoxSpinner } from '@/components/ui/table-loader'
@@ -32,17 +29,42 @@ async function getToken() {
 }
 
 export default function WarehousesPage() {
-  const router = useRouter()
-  const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const queryClient  = useQueryClient()
   const [showInactive, setShowInactive] = useState(false)
-  const [deleteTarget, setDeleteTarget]   = useState<Warehouse | null>(null)
-  const [deleting, setDeleting]           = useState(false)
-  const [addOpen,       setAddOpen]       = useState(false)
-  const [editWarehouse, setEditWarehouse] = useState<Warehouse | null>(null)
-  const [wForm, setWForm]                 = useState({ warehouse_name: '', warehouse_type: 'own' as 'own'|'supplier'|'3pl', state: '', contact_name: '', contact_phone: '', is_active: true, is_own_warehouse: false, is_supplier_warehouse: false })
-  const [wSaving, setWSaving]             = useState(false)
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedForm, setSelectedForm] = useState<WarehouseFormState | null>(null)
+
+  const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null)
+  const [deleting, setDeleting]         = useState(false)
 
   const { data: warehouses = [], isPending: loading } = useAdminWarehouses(showInactive)
+
+  function selectWarehouse(w: Warehouse) {
+    setSelectedId(w.warehouse_id)
+    setSelectedForm(warehouseToForm(w))
+  }
+
+  function handleNewWarehouse() {
+    setSelectedId(null)
+    setSelectedForm(null)
+  }
+
+  function handleSaved() {
+    queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+  }
+
+  async function patchWarehouseField(warehouseId: string, body: Record<string, boolean>) {
+    const tok = await getToken()
+    const res = await fetch(`${API}/api/admin/orders/warehouses/${warehouseId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error('Failed')
+    queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+  }
 
   async function handleDelete() {
     if (!deleteTarget) return
@@ -57,6 +79,7 @@ export default function WarehousesPage() {
       toastSuccess('Warehouse deleted')
       setDeleteTarget(null)
       queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+      if (selectedId === deleteTarget.warehouse_id) { setSelectedId(null); setSelectedForm(null) }
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Delete failed')
     } finally {
@@ -64,217 +87,138 @@ export default function WarehousesPage() {
     }
   }
 
+  // Deep link: /admin/warehouses?warehouse=X selects that warehouse once loaded.
+  useEffect(() => {
+    const whQ = searchParams.get('warehouse')
+    if (whQ && !selectedId && warehouses.length > 0) {
+      const found = warehouses.find(w => w.warehouse_id === whQ)
+      if (found) selectWarehouse(found)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [warehouses])
+
   return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <AdminBreadcrumb crumbs={[{ label: 'Warehouses' }]} />
-          <h1 className="mt-2 text-xl font-semibold text-zinc-900">Warehouses</h1>
-          <p className="text-sm text-zinc-500 mt-0.5">Manage own, supplier, and 3PL warehouse locations</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={e => setShowInactive(e.target.checked)}
-              className="rounded border-zinc-300"
-            />
-            Show inactive
-          </label>
-          <Button onClick={() => setAddOpen(true)} className="flex items-center gap-1.5">
-            <Plus className="w-4 h-4" /> Add Warehouse
-          </Button>
-        </div>
+    <>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <AdminBreadcrumb crumbs={[{ label: 'Warehouses' }]} />
       </div>
 
-      {loading ? (
-        <BoxSpinner />
-      ) : (
-        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flags</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {warehouses.length === 0 && (
-                <tr><td colSpan={7} className="px-4 py-8 text-center text-zinc-400">No warehouses yet</td></tr>
-              )}
-              {warehouses.map(w => (
-                <tr key={w.warehouse_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
-                  <td className="px-4 py-3 font-medium text-zinc-900">{w.warehouse_name}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium uppercase ${TYPE_COLOURS[w.warehouse_type] ?? 'bg-zinc-100 text-zinc-600'}`}>
-                      {w.warehouse_type}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {[w.suburb, w.state, w.postcode].filter(Boolean).join(', ') || w.state}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {w.contact_name
-                      ? <span>{w.contact_name}{w.contact_phone && <><br />{w.contact_phone}</>}</span>
-                      : '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex gap-1 flex-wrap">
-                      {w.is_own_warehouse      && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded">Own</span>}
-                      {w.is_supplier_warehouse && <span className="text-[10px] bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded">Supplier</span>}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <BoolToggle initial={w.is_active} onToggle={async next => {
-                      const tok = await getToken()
-                      const res = await fetch(`${API}/api/admin/orders/warehouses/${w.warehouse_id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-                        body: JSON.stringify({ is_active: next }),
-                      })
-                      if (!res.ok) throw new Error('Failed')
-                      queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
-                    }} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => { setEditWarehouse(w); setWForm({ warehouse_name: w.warehouse_name, warehouse_type: w.warehouse_type, state: w.state, contact_name: w.contact_name ?? '', contact_phone: w.contact_phone ?? '', is_active: w.is_active, is_own_warehouse: w.is_own_warehouse, is_supplier_warehouse: w.is_supplier_warehouse }) }}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100 hover:border-blue-300 transition-colors shadow-sm"
-                      >
-                        <Pencil className="w-3 h-3" /> Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDeleteTarget(w)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors shadow-sm"
-                      >
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Delete confirmation */}
-      <Dialog open={!!deleteTarget} onOpenChange={open => !open && setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Delete Warehouse?</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-zinc-600 mt-1">
-            <strong>{deleteTarget?.warehouse_name}</strong> will be permanently removed. This will fail if stock is assigned to this warehouse.
-          </p>
-          <div className="flex gap-3 justify-end mt-4">
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
-            <Button type="button" variant="destructive" disabled={deleting} onClick={handleDelete}>
-              {deleting ? 'Deleting…' : 'Delete'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <WarehouseAddSheet
-        open={addOpen}
-        onClose={() => setAddOpen(false)}
-        onSaved={() => {
-          setAddOpen(false)
-          queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
-        }}
-      />
-
-      <Sheet
-        open={!!editWarehouse}
-        onClose={() => setEditWarehouse(null)}
-        title={editWarehouse ? `Edit Warehouse — ${editWarehouse.warehouse_name}` : 'Edit Warehouse'}
-        footer={
+      <SplitView
+        title="Warehouses"
+        description="Manage own, supplier, and 3PL warehouse locations"
+        headerAction={
           <>
-            <button type="button" onClick={() => setEditWarehouse(null)}
-              className="px-4 py-2 rounded-lg border border-zinc-200 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
-              Cancel
-            </button>
-            <button type="button" disabled={wSaving} onClick={async () => {
-              if (!editWarehouse || !wForm.warehouse_name.trim()) return
-              setWSaving(true)
-              try {
-                const tok = await getToken()
-                const res = await fetch(`${API}/api/admin/orders/warehouses/${editWarehouse.warehouse_id}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tok}` },
-                  body: JSON.stringify({ ...wForm, contact_name: wForm.contact_name || null, contact_phone: wForm.contact_phone || null }),
-                })
-                if (!res.ok) throw new Error('Failed')
-                queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
-                setEditWarehouse(null)
-              } catch { toastError('Failed to save warehouse') }
-              finally { setWSaving(false) }
-            }}
-              className="px-4 py-2 rounded-lg bg-primary text-sm font-semibold text-zinc-900 hover:bg-primary/90 disabled:opacity-50 transition-colors">
-              {wSaving ? 'Saving…' : 'Save'}
+            <label className="flex items-center gap-1.5 text-sm text-zinc-500 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={e => setShowInactive(e.target.checked)}
+                className="rounded border-zinc-300"
+              />
+              Show inactive
+            </label>
+            <button
+              type="button"
+              onClick={handleNewWarehouse}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm"
+            >
+              + Add Warehouse
             </button>
           </>
         }
-      >
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">Warehouse Name <span className="text-red-500">*</span></label>
-          <input value={wForm.warehouse_name} onChange={e => setWForm(f => ({ ...f, warehouse_name: e.target.value }))}
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">Type</label>
-          <select value={wForm.warehouse_type} onChange={e => setWForm(f => ({ ...f, warehouse_type: e.target.value as 'own'|'supplier'|'3pl' }))}
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
-            <option value="own">Own</option>
-            <option value="supplier">Supplier</option>
-            <option value="3pl">3PL</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-zinc-700 mb-1">State</label>
-          <select value={wForm.state} onChange={e => setWForm(f => ({ ...f, state: e.target.value }))}
-            className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
-            {['ACT','NSW','NT','QLD','SA','TAS','VIC','WA'].map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-zinc-700 mb-1">Contact Name</label>
-            <input value={wForm.contact_name} onChange={e => setWForm(f => ({ ...f, contact_name: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
+        list={
+          loading ? (
+            <BoxSpinner />
+          ) : (
+            <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Contact</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200">
+                  {warehouses.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-zinc-400">No warehouses yet</td></tr>
+                  )}
+                  {warehouses.map(w => {
+                    const isSelected = selectedId === w.warehouse_id
+                    return (
+                      <tr key={w.warehouse_id}
+                        className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer ${isSelected ? '!bg-primary/10' : ''}`}
+                        onClick={() => selectWarehouse(w)}
+                      >
+                        <td className="px-4 py-3 font-medium text-zinc-900">{w.warehouse_name}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium uppercase ${TYPE_COLOURS[w.warehouse_type] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                            {w.warehouse_type}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500 text-xs">
+                          {[w.suburb, w.state, w.postcode].filter(Boolean).join(', ') || w.state}
+                        </td>
+                        <td className="px-4 py-3 text-zinc-500 text-xs">
+                          {w.contact_name
+                            ? <span>{w.contact_name}{w.contact_phone && <><br />{w.contact_phone}</>}</span>
+                            : '—'}
+                        </td>
+                        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                          <StatusSelect
+                            value={w.is_active}
+                            onChange={next => patchWarehouseField(w.warehouse_id, { is_active: next })}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+        panel={
+          <WarehouseFormPanel
+            key={selectedId ?? 'new'}
+            mode={selectedId ? 'edit' : 'create'}
+            warehouseId={selectedId ?? undefined}
+            initial={selectedForm ?? EMPTY_WAREHOUSE_FORM}
+            onSaved={handleSaved}
+            onRequestDelete={() => {
+              const w = warehouses.find(x => x.warehouse_id === selectedId)
+              if (w) setDeleteTarget(w)
+            }}
+          />
+        }
+      />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deleting && setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl border border-zinc-200 p-6 w-full max-w-sm">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-50 mx-auto mb-4">
+              <Trash2 className="w-5 h-5 text-red-500" />
+            </div>
+            <h2 className="text-base font-semibold text-zinc-900 text-center">Delete Warehouse?</h2>
+            <p className="text-sm text-zinc-500 text-center mt-1 mb-5">
+              <strong>{deleteTarget.warehouse_name}</strong> will be permanently removed. This will fail if stock is assigned to this warehouse.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setDeleteTarget(null)} disabled={deleting}
+                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+                Cancel
+              </button>
+              <button type="button" onClick={handleDelete} disabled={deleting}
+                className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-700 mb-1">Contact Phone</label>
-            <input value={wForm.contact_phone} onChange={e => setWForm(f => ({ ...f, contact_phone: e.target.value }))}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white" />
-          </div>
         </div>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-700">Is Active</span>
-            <BoolToggle initial={wForm.is_active} onToggle={async next => setWForm(f => ({ ...f, is_active: next }))} />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-700">Own Warehouse</span>
-            <BoolToggle initial={wForm.is_own_warehouse} onToggle={async next => setWForm(f => ({ ...f, is_own_warehouse: next }))} />
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-700">Supplier Warehouse</span>
-            <BoolToggle initial={wForm.is_supplier_warehouse} onToggle={async next => setWForm(f => ({ ...f, is_supplier_warehouse: next }))} />
-          </div>
-        </div>
-      </Sheet>
-    </div>
+      )}
+    </>
   )
 }
-

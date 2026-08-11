@@ -410,12 +410,7 @@ export default function HeroSection() {
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-24 lg:px-10 lg:pb-14 lg:pt-28">
         <div className="grid items-center gap-8 lg:min-h-[420px] lg:grid-cols-12">
           {/* Heading */}
-          <motion.div
-            className="lg:col-span-7"
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
-          >
+          <div className="lg:col-span-7">
             <div className="uppercase text-[#f8f4ea]">
               <h1 className="origin-bottom font-oswald font-black leading-[0.85] tracking-[-0.06em] [transform:scaleY(1.15)] text-[60px] sm:text-[80px] md:text-[110px] lg:text-[128px]">
                 PERFECT
@@ -431,16 +426,11 @@ export default function HeroSection() {
                 </div>
               </div>
             </div>
-            <motion.p
-              className="mt-6 max-w-lg text-sm leading-relaxed text-zinc-300 sm:text-base md:text-lg"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
+            <p className="mt-6 max-w-lg text-sm leading-relaxed text-zinc-300 sm:text-base md:text-lg">
               Search by size, vehicle, or brand and get the best deals instantly
               — from the world&apos;s most trusted tyre makers.
-            </motion.p>
-          </motion.div>
+            </p>
+          </div>
 
           {/* Stat badges */}
           <motion.div

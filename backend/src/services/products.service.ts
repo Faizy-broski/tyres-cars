@@ -1443,6 +1443,11 @@ export async function listCategories() {
   return result
 }
 
+function bustCategoriesCache() {
+  metaCache.delete('admin:categories')
+  redis?.del('admin:categories').catch(() => null)
+}
+
 export type CategoryType = 'season' | 'application' | 'performance' | 'position' | 'terrain'
 
 export async function createCategory(payload: {
@@ -1462,6 +1467,7 @@ export async function createCategory(payload: {
     hidden_from_website: payload.hidden_from_website ?? false,
   }).select().single()
   if (error) throw error
+  bustCategoriesCache()
   return data
 }
 
@@ -1478,11 +1484,13 @@ export async function updateCategory(id: string, payload: {
 }) {
   const { error } = await supabase.from('categories').update(payload).eq('category_id', id)
   if (error) throw error
+  bustCategoriesCache()
 }
 
 export async function deleteCategory(id: string) {
   const { error } = await supabase.from('categories').delete().eq('category_id', id)
   if (error) throw error
+  bustCategoriesCache()
 }
 
 // ── product_categories (SKU-level many-to-many) ────────────────────────────

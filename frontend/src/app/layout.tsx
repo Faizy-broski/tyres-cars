@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Montserrat, Geist_Mono } from 'next/font/google'
+import { Montserrat, Geist_Mono, Oswald, Raleway } from 'next/font/google'
 import './globals.css'
 import { cn } from "@/lib/utils"
 
@@ -7,6 +7,19 @@ const montserrat = Montserrat({
   subsets: ['latin'],
   variable: '--font-sans',
   weight: ['300', '400', '500', '600', '700', '800', '900'],
+  display: 'swap',
+})
+
+const oswald = Oswald({
+  subsets: ['latin'],
+  variable: '--font-oswald',
+  weight: ['400', '600', '700'],
+  display: 'swap',
+})
+
+const raleway = Raleway({
+  subsets: ['latin'],
+  variable: '--font-raleway',
   display: 'swap',
 })
 
@@ -29,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={cn("font-sans", montserrat.variable, geistMono.variable)}>
+    <html lang="en" className={cn("font-sans", montserrat.variable, oswald.variable, raleway.variable, geistMono.variable)}>
       <body suppressHydrationWarning className="antialiased">
         {children}
       </body>

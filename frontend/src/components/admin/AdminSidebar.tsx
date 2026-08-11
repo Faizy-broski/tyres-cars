@@ -23,6 +23,8 @@ import {
   Ship,
   ChevronRight,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
@@ -54,7 +56,7 @@ const nav = [
     children: [{ label: "Customer Groups", href: "/admin/customers/groups" }],
   },
   { label: "Promotions",      href: "/admin/promotions",       icon: Tag },
-  { label: "Price Lists",     href: "/admin/pricing",          icon: CircleDollarSign },
+ // { label: "Price Lists",     href: "/admin/pricing",          icon: CircleDollarSign },
   { label: "Purchase Orders", href: "/admin/purchase-orders",  icon: ShoppingCart },
   { label: "Shipments",       href: "/admin/shipments",        icon: PackageOpen },
   {
@@ -76,9 +78,11 @@ interface Props {
   userEmail: string;
   isOpen?: boolean;
   onClose?: () => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Props) {
+export default function AdminSidebar({ userEmail, isOpen = false, onClose, collapsed = false, onToggleCollapse }: Props) {
   const pathname     = usePathname();
   const router       = useRouter();
   const queryClient  = useQueryClient();
@@ -126,6 +130,19 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
     setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
   }
 
+  // The collapse preference is a desktop-only affordance — a stored "collapsed" value
+  // must never force the icon-only rail (with its hover-only flyouts and hidden toggle)
+  // onto a mobile drawer, where there'd be no way back to full labels.
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia("(min-width: 1024px)");
+    setIsDesktop(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, []);
+  const railMode = collapsed && isDesktop;
+
   async function signOut() {
     await createClient().auth.signOut();
     router.push("/");
@@ -137,29 +154,64 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-30 w-60 flex flex-col transition-transform duration-200 ease-in-out",
+        "fixed inset-y-0 left-0 z-30 w-56 flex flex-col transition-transform duration-200 ease-in-out",
         "bg-zinc-950 text-zinc-400",
-        "lg:relative lg:translate-x-0 lg:shrink-0",
+        "lg:relative lg:translate-x-0 lg:shrink-0 lg:transition-[width] lg:duration-200 lg:ease-in-out",
+        collapsed ? "lg:w-16" : "lg:w-52",
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
       )}
     >
-      {/* Logo area */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-        <Link href="/admin/dashboard">
-          <Image src="/logo.svg" width={150} height={46} alt="Tyre Vault" />
+      {/* Mobile header: always the full logo + close button, regardless of the desktop collapse preference */}
+      <div className="flex lg:hidden items-center justify-between border-b border-zinc-800 px-3 py-3">
+        <Link href="/admin/dashboard" className="min-w-0">
+          <Image src="/logo.svg" width={120} height={37} alt="Tyre Vault" className="max-w-full h-auto" />
         </Link>
         <button
           type="button"
           onClick={onClose}
-          className="lg:hidden rounded-lg p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+          className="shrink-0 rounded-lg p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
           aria-label="Close menu"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
+      {/* Desktop header: respects the collapse preference; also hosts the collapse toggle, no separate row for it */}
+      <div className={cn("hidden lg:flex items-center border-b border-zinc-800", collapsed ? "justify-center px-2 py-3" : "justify-between px-3 py-3")}>
+        {collapsed ? (
+          onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+              className="rounded-lg p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+            >
+              <PanelLeftOpen className="w-4 h-4" />
+            </button>
+          )
+        ) : (
+          <>
+            <Link href="/admin/dashboard" className="min-w-0">
+              <Image src="/logo.svg" width={120} height={37} alt="Tyre Vault" className="max-w-full h-auto" />
+            </Link>
+            {onToggleCollapse && (
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+                className="shrink-0 rounded-lg p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            )}
+          </>
+        )}
+      </div>
+
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
+      <nav className={cn("flex-1 overflow-y-auto py-3 space-y-0.5", railMode ? "px-2" : "px-3")}>
         {nav.map((item) => {
           const active      = pathname.startsWith(item.href);
           const Icon        = item.icon;
@@ -167,6 +219,68 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
           const open        = Boolean(expanded[item.href]);
           const noNav       = Boolean((item as { noNav?: boolean }).noNav);
 
+          // ── Collapsed rail: icon-only row, children reachable via a hover flyout ──
+          if (railMode) {
+            return (
+              <div key={item.href} className="relative group/item">
+                {noNav ? (
+                  <button
+                    type="button"
+                    onClick={() => toggle(item.href)}
+                    title={item.label}
+                    aria-label={item.label}
+                    className={cn(
+                      "flex items-center justify-center w-full py-2.5 rounded-lg transition-colors duration-150",
+                      active ? "bg-primary/20 text-primary" : "text-zinc-400 hover:bg-zinc-800/70 hover:text-white",
+                    )}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                  </button>
+                ) : (
+                  <Link
+                    href={item.href}
+                    onClick={onClose}
+                    onMouseEnter={() => schedulePrefetch(item.href)}
+                    onMouseLeave={cancelPrefetch}
+                    title={item.label}
+                    className={cn(
+                      "flex items-center justify-center w-full py-2.5 rounded-lg transition-colors duration-150",
+                      active ? "bg-primary/20 text-primary" : "text-zinc-400 hover:bg-zinc-800/70 hover:text-white",
+                    )}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                  </Link>
+                )}
+
+                {/* Flyout: label always shown on hover; children (if any) listed underneath */}
+                <div className="invisible opacity-0 group-hover/item:visible group-hover/item:opacity-100 transition-opacity duration-150 absolute left-full top-0 ml-2 z-40 min-w-[170px] rounded-lg bg-zinc-900 border border-zinc-800 shadow-xl py-1.5">
+                  <p className={cn("px-3 py-1 text-[12px] font-semibold", active ? "text-primary" : "text-zinc-200")}>{item.label}</p>
+                  {hasChildren && (
+                    <div className="mt-0.5 space-y-0.5 px-1.5 pb-1">
+                      {item.children!.map((child) => {
+                        const childActive = pathname === child.href || pathname.startsWith(child.href + "/");
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            onClick={onClose}
+                            className={cn(
+                              "block rounded-md px-2.5 py-1.5 text-[12px] transition-colors duration-100",
+                              childActive ? "text-primary font-semibold bg-primary/10" : "text-zinc-400 hover:text-white hover:bg-zinc-800/60",
+                            )}
+                          >
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          }
+
+          // ── Expanded: full label, inline collapsible submenu ──
           return (
             <div key={item.href}>
               {/* Parent row */}
@@ -182,7 +296,7 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
                   <button
                     type="button"
                     onClick={() => toggle(item.href)}
-                    className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0 text-left"
+                    className="flex items-center gap-3 flex-1 px-3 py-2 min-w-0 text-left"
                   >
                     <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />
                     <span className="truncate text-[13px]">{item.label}</span>
@@ -196,7 +310,7 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
                     }}
                     onMouseEnter={() => schedulePrefetch(item.href)}
                     onMouseLeave={cancelPrefetch}
-                    className="flex items-center gap-3 flex-1 px-3 py-2.5 min-w-0"
+                    className="flex items-center gap-3 flex-1 px-3 py-2 min-w-0"
                   >
                     <Icon className={cn("w-4 h-4 shrink-0", active ? "text-primary" : "text-zinc-400 group-hover:text-white")} />
                     <span className="truncate text-[13px]">{item.label}</span>
@@ -259,24 +373,38 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose }: Pro
       </nav>
 
       {/* Bottom user strip */}
-      <div className="border-t border-zinc-800 px-3 py-3">
-        <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-zinc-800/60 transition-colors group">
-          <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[11px] font-bold text-zinc-900 shrink-0">
-            {initials}
+      <div className={cn("border-t border-zinc-800 py-3", railMode ? "px-2" : "px-3")}>
+        {railMode ? (
+          <div className="flex flex-col items-center gap-2">
+            <div
+              title={`${displayName} — ${userEmail}`}
+              className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[11px] font-bold text-zinc-900 shrink-0"
+            >
+              {initials}
+            </div>
+            <button type="button" onClick={signOut} title="Sign out" className="text-zinc-600 hover:text-red-400 transition-colors shrink-0">
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-zinc-200 text-[12px] font-medium truncate">{displayName}</p>
-            <p className="text-zinc-500 text-[10px] truncate">{userEmail}</p>
+        ) : (
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-zinc-800/60 transition-colors group">
+            <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center text-[11px] font-bold text-zinc-900 shrink-0">
+              {initials}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-zinc-200 text-[12px] font-medium truncate">{displayName}</p>
+              <p className="text-zinc-500 text-[10px] truncate">{userEmail}</p>
+            </div>
+            <button
+              type="button"
+              onClick={signOut}
+              title="Sign out"
+              className="text-zinc-600 hover:text-red-400 transition-colors shrink-0"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={signOut}
-            title="Sign out"
-            className="text-zinc-600 hover:text-red-400 transition-colors shrink-0"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        )}
       </div>
     </aside>
   );

@@ -2,17 +2,19 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { SplitView } from '@/components/admin/SplitView'
 import { TableBodySpinner } from '@/components/ui/table-loader'
-import { Button } from '@/components/ui/button'
-import CustomerRowMenu from '@/components/admin/customers/CustomerRowMenu'
-import CustomerSheet from '@/components/admin/customers/CustomerSheet'
+import { CustomerFormPanel, EMPTY_CUSTOMER_FORM, customerToForm, type CustomerFormState } from '@/components/admin/customers/CustomerFormPanel'
+import { toastError, toastSuccess } from '@/lib/toast'
 import {
   useCustomerList, useCustomerStats,
   type CustomerStats, type CustomerListResponse,
 } from '@/lib/query/hooks'
+import type { CustomerListItem } from '@/types/admin.types'
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 function AccountBadge({ isGuest }: { isGuest: boolean }) {
   return (
@@ -82,6 +84,11 @@ const LIMIT = 20
 
 const EMPTY_STATS: CustomerStats = { totalCustomers: 0, totalOrders: 0, avgOrderSize: 0, totalRevenue: 0 }
 
+async function getToken() {
+  const { data: { session } } = await createClient().auth.getSession()
+  return session?.access_token ?? ''
+}
+
 type Props = {
   initialStats?:     CustomerStats
   initialCustomers?: CustomerListResponse
@@ -97,13 +104,11 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const accountType  = (searchParams.get('accountType') as 'guest' | 'registered' | undefined) ?? undefined
   const customerType = searchParams.get('customerType') ?? ''
   const statusFilter = searchParams.get('status') ?? ''
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [token, setToken] = useState('')
-  useEffect(() => {
-    createClient().auth.getSession().then(({ data: { session } }) =>
-      setToken(session?.access_token ?? ''),
-    )
-  }, [])
+
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedForm, setSelectedForm] = useState<CustomerFormState | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<CustomerListItem | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const isDefaultView = page === 1 && !search && !accountType && !customerType && !statusFilter
 
@@ -117,7 +122,6 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const stats     = statsQuery.data     ?? EMPTY_STATS
   const customers = listQuery.data?.customers ?? []
   const count     = listQuery.data?.total     ?? 0
-
 
   const buildHref = useCallback((extra: Record<string, string>) => {
     const p = new URLSearchParams()
@@ -134,15 +138,43 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const startResult = count === 0 ? 0 : (page - 1) * LIMIT + 1
   const endResult   = count === 0 ? 0 : (page - 1) * LIMIT + customers.length
 
+  function selectCustomer(c: CustomerListItem) {
+    setSelectedId(c.customer_id)
+    setSelectedForm(customerToForm(c))
+  }
+
+  function handleNewCustomer() {
+    setSelectedId(null)
+    setSelectedForm(null)
+  }
+
+  function handleSaved() {
+    listQuery.refetch()
+  }
+
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      const tok = await getToken()
+      const res = await fetch(`${API}/api/admin/customers/${deleteTarget.customer_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${tok}` },
+      })
+      if (!res.ok) throw new Error('Delete failed')
+      toastSuccess('Customer deleted')
+      setDeleteTarget(null)
+      if (selectedId === deleteTarget.customer_id) { setSelectedId(null); setSelectedForm(null) }
+      listQuery.refetch()
+    } catch (err) {
+      toastError(err instanceof Error ? err.message : 'Delete failed')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="space-y-5 p-4 sm:p-6">
-      <CustomerSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSaved={() => { setSheetOpen(false); listQuery.refetch() }}
-        accessToken={token}
-      />
-
       <AdminBreadcrumb crumbs={[{ label: 'Customers' }]} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -160,177 +192,196 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
         />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4">
-          <h2 className="text-sm font-semibold text-zinc-900">Customers</h2>
-          <Button
+      <SplitView
+        title="Customers"
+        headerAction={
+          <button
             type="button"
-            size="sm"
-            onClick={() => setSheetOpen(true)}
+            onClick={handleNewCustomer}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-primary/90 transition-colors shadow-sm"
           >
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            Create Customer
-          </Button>
-        </div>
+            + Create Customer
+          </button>
+        }
+        list={
+          <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3">
+              <select
+                value={accountType ?? ''}
+                onChange={e => router.push(buildHref({ accountType: e.target.value, page: '1' }))}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                  accountType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+                }`}
+              >
+                <option value="">All Accounts</option>
+                <option value="guest">Guest</option>
+                <option value="registered">Registered</option>
+              </select>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-zinc-100 px-5 py-3">
-          <select
-            value={accountType ?? ''}
-            onChange={e => router.push(buildHref({ accountType: e.target.value, page: '1' }))}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-              accountType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-            }`}
-          >
-            <option value="">All Accounts</option>
-            <option value="guest">Guest</option>
-            <option value="registered">Registered</option>
-          </select>
+              <select
+                value={customerType}
+                onChange={e => router.push(buildHref({ customerType: e.target.value, page: '1' }))}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                  customerType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+                }`}
+              >
+                <option value="">All Types</option>
+                <option value="retail">Retail</option>
+                <option value="wholesale">Wholesale</option>
+                <option value="fleet">Fleet</option>
+                <option value="trade">Trade</option>
+              </select>
 
-          <select
-            value={customerType}
-            onChange={e => router.push(buildHref({ customerType: e.target.value, page: '1' }))}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-              customerType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-            }`}
-          >
-            <option value="">All Types</option>
-            <option value="retail">Retail</option>
-            <option value="wholesale">Wholesale</option>
-            <option value="fleet">Fleet</option>
-            <option value="trade">Trade</option>
-          </select>
+              <select
+                value={statusFilter}
+                onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
+                  statusFilter ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
+                }`}
+              >
+                <option value="">Any Status</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+                <option value="blocked">Blocked</option>
+              </select>
 
-          <select
-            value={statusFilter}
-            onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
-            className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-              statusFilter ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-            }`}
-          >
-            <option value="">Any Status</option>
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="blocked">Blocked</option>
-          </select>
+              {(accountType || customerType || statusFilter || search) && (
+                <button
+                  type="button"
+                  onClick={() => router.push(buildHref({ accountType: '', customerType: '', status: '', search: '', page: '1' }))}
+                  className="text-xs text-zinc-400 hover:text-red-600 transition-colors"
+                >
+                  ✕ Clear
+                </button>
+              )}
 
-          {(accountType || customerType || statusFilter || search) && (
-            <button
-              type="button"
-              onClick={() => router.push(buildHref({ accountType: '', customerType: '', status: '', search: '', page: '1' }))}
-              className="text-xs text-zinc-400 hover:text-red-600 transition-colors"
-            >
-              ✕ Clear
-            </button>
-          )}
+              <form
+                onSubmit={e => {
+                  e.preventDefault()
+                  const q = (new FormData(e.currentTarget).get('search') as string) ?? ''
+                  router.push(buildHref({ search: q, page: '1' }))
+                }}
+                className="relative ml-auto"
+              >
+                <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+                <input
+                  name="search" defaultValue={search} placeholder="Search customers…"
+                  className="w-48 rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </form>
+            </div>
 
-          <form
-            onSubmit={e => {
-              e.preventDefault()
-              const q = (new FormData(e.currentTarget).get('search') as string) ?? ''
-              router.push(buildHref({ search: q, page: '1' }))
-            }}
-            className="relative ml-auto"
-          >
-            <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              name="search" defaultValue={search} placeholder="Search customers…"
-              className="w-48 rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-            />
-          </form>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Value</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Order</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Created</th>
-                <th className="w-8 px-5 py-3"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {loading ? (
-                <TableBodySpinner />
-              ) : customers.length === 0 ? (
-                <tr>
-                  <td colSpan={11} className="px-5 py-16 text-center">
-                    <div className="flex flex-col items-center gap-2 mx-auto">
-                      <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                      </svg>
-                      <p className="text-sm font-medium text-zinc-400">{search ? `No customers matching "${search}"` : 'No customers yet.'}</p>
-                      {search && <p className="text-xs text-zinc-300">Try a different search term.</p>}
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                customers.map((customer, idx) => {
-                  const displayId = `CUST-${String((page - 1) * LIMIT + idx + 1).padStart(3, '0')}`
-                  return (
-                    <tr key={customer.customer_id} className="odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors">
-                      <td className="px-5 py-3 font-mono text-xs text-zinc-500">
-                        <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-bold text-primary hover:underline">{displayId}</Link>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50">
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">ID</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</th>
+                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Value</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Order</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200">
+                  {loading ? (
+                    <TableBodySpinner />
+                  ) : customers.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-5 py-16 text-center">
+                        <p className="text-sm font-medium text-zinc-400">{search ? `No customers matching "${search}"` : 'No customers yet.'}</p>
                       </td>
-                      <td className="px-5 py-3 text-xs text-zinc-600">{customer.email}</td>
-                      <td className="px-5 py-3">
-                        <Link href={`/admin/customers/${customer.customer_id}`} className="text-sm font-bold text-primary hover:underline">
-                          {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
-                      <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
-                      <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
-                      <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
-                      <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>
-                      <td className="px-5 py-3">
-                        {customer.last_order_number ? (
-                          <div>
-                            <p className="text-xs font-medium text-zinc-800">{customer.last_order_number}</p>
-                            <p className="text-xs text-zinc-400">{fmtDate(customer.last_order_date)}</p>
-                          </div>
-                        ) : <span className="text-xs text-zinc-400">—</span>}
-                      </td>
-                      <td className="px-5 py-3 text-xs text-zinc-500">{fmtDate(customer.created_at)}</td>
-                      <td className="px-5 py-3"><CustomerRowMenu customer={customer} accessToken={token} /></td>
                     </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                  ) : (
+                    customers.map((customer, idx) => {
+                      const displayId = `CUST-${String((page - 1) * LIMIT + idx + 1).padStart(3, '0')}`
+                      const isSelected = selectedId === customer.customer_id
+                      return (
+                        <tr key={customer.customer_id}
+                          className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer ${isSelected ? '!bg-primary/10' : ''}`}
+                          onClick={() => selectCustomer(customer)}
+                        >
+                          <td className="px-5 py-3 font-mono text-xs text-zinc-500">{displayId}</td>
+                          <td className="px-5 py-3 text-xs text-zinc-600">{customer.email}</td>
+                          <td className="px-5 py-3 text-sm font-medium text-zinc-900">
+                            {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
+                          </td>
+                          <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
+                          <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
+                          <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
+                          <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
+                          <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>
+                          <td className="px-5 py-3">
+                            {customer.last_order_number ? (
+                              <div>
+                                <p className="text-xs font-medium text-zinc-800">{customer.last_order_number}</p>
+                                <p className="text-xs text-zinc-400">{fmtDate(customer.last_order_date)}</p>
+                              </div>
+                            ) : <span className="text-xs text-zinc-400">—</span>}
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
-          <span>{startResult} — {endResult} of {count} results</span>
-          <div className="flex items-center gap-3">
-            <span>{page} of {totalPages} pages</span>
-            <div className="flex gap-1">
-              {page > 1 ? (
-                <Link href={buildHref({ page: String(page - 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Prev</Link>
-              ) : (
-                <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300 text-xs">Prev</span>
-              )}
-              {page < totalPages ? (
-                <Link href={buildHref({ page: String(page + 1) })} className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium">Next</Link>
-              ) : (
-                <span className="cursor-not-allowed rounded-lg border border-zinc-200 px-3 py-1.5 text-zinc-300 text-xs">Next</span>
-              )}
+            <div className="flex items-center justify-between border-t border-zinc-100 px-5 py-3 text-xs text-zinc-500">
+              <span>{startResult} — {endResult} of {count} results</span>
+              <div className="flex items-center gap-3">
+                <span>{page} of {totalPages} pages</span>
+                <div className="flex gap-1">
+                  <button type="button" disabled={page <= 1} onClick={() => router.push(buildHref({ page: String(page - 1) }))}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed">Prev</button>
+                  <button type="button" disabled={page >= totalPages} onClick={() => router.push(buildHref({ page: String(page + 1) }))}
+                    className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:bg-white hover:border-zinc-400 transition-colors text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed">Next</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
+        panel={
+          <CustomerFormPanel
+            key={selectedId ?? 'new'}
+            mode={selectedId ? 'edit' : 'create'}
+            customerId={selectedId ?? undefined}
+            initial={selectedForm ?? EMPTY_CUSTOMER_FORM}
+            onSaved={handleSaved}
+            onRequestDelete={() => {
+              const c = customers.find(x => x.customer_id === selectedId)
+              if (c) setDeleteTarget(c)
+            }}
+          />
+        }
+      />
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deleting && setDeleteTarget(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl border border-zinc-200 p-6 w-full max-w-sm">
+            <p className="text-base font-semibold text-zinc-900 text-center">Delete Customer</p>
+            <p className="text-sm text-zinc-500 text-center mt-1 mb-5">
+              Are you sure you want to delete <span className="font-medium text-zinc-700">{deleteTarget.email}</span>? This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button type="button" onClick={() => setDeleteTarget(null)} disabled={deleting}
+                className="flex-1 rounded-xl border border-zinc-200 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
+                Cancel
+              </button>
+              <button type="button" onClick={handleDelete} disabled={deleting}
+                className="flex-1 rounded-xl bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60 transition-colors">
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

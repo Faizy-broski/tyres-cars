@@ -26,23 +26,27 @@ export default function HelpSection() {
         </motion.div>
 
         <motion.div initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
-          <motion.p variants={fadeUp} className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Expert Advice</motion.p>
+          <motion.p variants={fadeUp} className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-900">Expert Advice</motion.p>
           <h2 className="mt-2 font-oswald text-3xl font-black leading-tight tracking-tight text-black sm:text-4xl">Need Help Finding Tyres?</h2>
-          <p className="mt-4 text-base leading-relaxed text-black/65 sm:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-black/75 sm:text-lg">
             Choosing the right tyres makes a huge difference in safety, comfort, and performance. Our team helps you find the perfect match based on your vehicle, driving habits, and budget.
           </p>
-          <p className="mt-3 text-base leading-relaxed text-black/65 sm:text-lg">
+          <p className="mt-3 text-base leading-relaxed text-black/75 sm:text-lg">
             Whether you need performance tyres, everyday options, SUV tyres, or all-season solutions — we make the process simple and stress-free.
           </p>
           <div className="mt-7 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             {bullets.map((item) => (
-              <div key={item} className="flex items-center gap-2 text-sm text-black/70 sm:text-base">
-                <Dot className="h-4 w-4 shrink-0 text-primary" />
+              <div key={item} className="flex items-center gap-2 text-sm font-medium text-zinc-800 sm:text-base">
+                <Dot className="h-4 w-4 shrink-0 text-amber-700" />
                 <span>{item}</span>
               </div>
             ))}
           </div>
-          <Button className="mt-8 h-12 rounded-full bg-primary px-6 font-oswald text-base font-bold italic text-white transition-all duration-200 hover:bg-[#c89907] active:scale-[0.97] sm:px-8 sm:text-xl">
+          <Button
+            type="button"
+            aria-label="Get expert help finding tyres"
+            className="mt-8 h-12 rounded-full bg-primary px-6 font-oswald text-base font-bold italic text-zinc-950 transition-all duration-200 hover:bg-[#c89907] active:scale-[0.97] sm:px-8 sm:text-xl"
+          >
             Get Expert Help
           </Button>
         </motion.div>
@@ -50,4 +54,3 @@ export default function HelpSection() {
     </section>
   );
 }
-

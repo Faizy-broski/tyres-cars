@@ -160,7 +160,7 @@ export default function BrandDetailPage() {
           </div>
         </div>
         <Link
-          href={`/admin/products/brands/${id}/edit`}
+          href={`/admin/products/brands?brand=${id}`}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm shrink-0"
         >
           <Pencil className="w-4 h-4" /> Edit Brand
@@ -233,7 +233,7 @@ export default function BrandDetailPage() {
               )}
             </div>
             <Link
-              href={`/admin/products/brands/${id}/patterns/new`}
+              href={`/admin/products/patterns?brand=${id}`}
               className="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" /> New
@@ -258,7 +258,7 @@ export default function BrandDetailPage() {
               <p className="text-sm font-medium text-zinc-500">No patterns yet</p>
               <p className="text-xs text-zinc-400 mt-1">Add the first pattern for this brand.</p>
               <Link
-                href={`/admin/products/brands/${id}/patterns/new`}
+                href={`/admin/products/patterns?brand=${id}`}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white hover:bg-primary/90 transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Pattern

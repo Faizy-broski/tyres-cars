@@ -3,26 +3,14 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MoreVertical, Search, SlidersHorizontal, Check, X } from 'lucide-react'
-import CustomerGroupSheet from './CustomerGroupSheet'
+import { Search, Plus } from 'lucide-react'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { SplitView } from '@/components/admin/SplitView'
+import { CustomerGroupFormPanel, EMPTY_CUSTOMER_GROUP_FORM, groupToForm, type CustomerGroupFormState } from './CustomerGroupFormPanel'
 import { toastSuccess, toastError } from '@/lib/toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import type { CustomerGroup } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -57,64 +45,40 @@ export default function CustomerGroupsClient({
 }: Props) {
   const router = useRouter()
   const [localSearch, setLocalSearch] = useState(search)
-
   const [localGroups, setLocalGroups] = useState<CustomerGroup[]>(groups)
+
   useEffect(() => { setLocalGroups(groups) }, [groups])
 
-  const [editingId,  setEditingId]    = useState<string | null>(null)
-  const [editName,   setEditName]     = useState('')
-  const [renaming,   setRenaming]     = useState(false)
-  const [deletingId, setDeletingId]   = useState<string | null>(null)
+  const [selectedId, setSelectedId]         = useState<string | null>(null)
+  const [selectedForm, setSelectedForm]     = useState<CustomerGroupFormState | null>(null)
+  const [deleteTarget, setDeleteTarget]     = useState<CustomerGroup | null>(null)
+  const [deleting, setDeleting]             = useState(false)
 
-  const [sheetOpen,   setSheetOpen]   = useState(false)
-  const [sheetTarget, setSheetTarget] = useState<CustomerGroup | null>(null)
-
-  function openCreate() {
-    setSheetTarget(null)
-    setSheetOpen(true)
+  function selectGroup(group: CustomerGroup) {
+    setSelectedId(group.group_id)
+    setSelectedForm(groupToForm(group))
   }
 
-  function openEditModal(group: CustomerGroup) {
-    setSheetTarget(group)
-    setSheetOpen(true)
+  function handleNewGroup() {
+    setSelectedId(null)
+    setSelectedForm(null)
   }
 
-  function handleSheetSaved(saved: CustomerGroup) {
-    if (sheetTarget) {
+  function handleSaved(saved: CustomerGroup) {
+    if (selectedId) {
       setLocalGroups(prev => prev.map(g => g.group_id === saved.group_id ? { ...g, ...saved } : g))
     } else {
       router.refresh()
     }
-    setSheetOpen(false)
+    setSelectedId(saved.group_id)
+    setSelectedForm(groupToForm(saved))
   }
 
-  async function saveRename(groupId: string) {
-    if (!editName.trim()) return
-    setRenaming(true)
+  async function handleDelete() {
+    if (!deleteTarget) return
+    setDeleting(true)
     try {
-      const res = await fetch(`${API}/api/admin/customers/groups/${groupId}`, {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-        body:    JSON.stringify({ name: editName.trim() }),
-      })
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? 'Failed to rename group')
-      }
-      setLocalGroups(prev => prev.map(g =>
-        g.group_id === groupId ? { ...g, group_name: editName.trim(), updated_at: new Date().toISOString() } : g
-      ))
-      setEditingId(null)
-      toastSuccess('Group renamed')
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to rename')
-    } finally { setRenaming(false) }
-  }
-
-  async function handleDelete(group: CustomerGroup) {
-    setDeletingId(group.group_id)
-    try {
-      const res = await fetch(`${API}/api/admin/customers/groups/${group.group_id}`, {
+      const res = await fetch(`${API}/api/admin/customers/groups/${deleteTarget.group_id}`, {
         method:  'DELETE',
         headers: { Authorization: `Bearer ${accessToken}` },
       })
@@ -122,15 +86,23 @@ export default function CustomerGroupsClient({
         const body = await res.json().catch(() => ({}))
         throw new Error(body.error ?? 'Failed to delete group')
       }
-      setLocalGroups(prev => prev.filter(g => g.group_id !== group.group_id))
-      toastSuccess(`Group "${group.group_name}" deleted`)
+      setLocalGroups(prev => prev.filter(g => g.group_id !== deleteTarget.group_id))
+      toastSuccess(`Group "${deleteTarget.group_name}" deleted`)
+      if (selectedId === deleteTarget.group_id) {
+        setSelectedId(null)
+        setSelectedForm(null)
+      }
+      setDeleteTarget(null)
+      router.refresh()
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : 'Failed to delete group')
-    } finally { setDeletingId(null) }
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const startResult = total === 0 ? 0 : (page - 1) * 20 + 1
-  const endResult = total === 0 ? 0 : (page - 1) * 20 + groups.length
+  const endResult   = total === 0 ? 0 : (page - 1) * 20 + localGroups.length
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -140,245 +112,179 @@ export default function CustomerGroupsClient({
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-5">
-        <AdminBreadcrumb
-          crumbs={[
-            { label: 'Customers', href: '/admin/customers' },
-            { label: 'Groups' },
-          ]}
-        />
-      </div>
-
-      <CustomerGroupSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSaved={handleSheetSaved}
-        accessToken={accessToken}
-        group={sheetTarget}
+    <div className="p-4 sm:p-6 space-y-5">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Customers', href: '/admin/customers' },
+          { label: 'Groups' },
+        ]}
       />
 
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold text-zinc-900">Customer Group</h1>
-        <Button
-          type="button"
-          onClick={openCreate}
-          className="h-auto rounded-lg bg-primary px-3 py-2 text-sm font-medium text-zinc-900 hover:bg-primary/90"
-        >
-          Create
-        </Button>
-      </div>
-
-      <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
-        <div className="flex flex-1 items-center gap-2">
-          <Button
+      <SplitView
+        title="Customer Groups"
+        description="Segment customers for pricing, discounts, and access tiers"
+        panelWidthClassName="w-full lg:w-[440px] xl:w-[480px]"
+        headerAction={
+          <button
             type="button"
-            variant="outline"
-            className="h-auto rounded-full border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500"
+            onClick={handleNewGroup}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-zinc-900 hover:bg-primary/90 transition-colors shadow-sm"
           >
-            + Account
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-auto rounded-full border-zinc-300 px-3 py-1 text-sm text-zinc-600 hover:border-zinc-500"
-          >
-            + Created
-          </Button>
-        </div>
-        <form onSubmit={submitSearch} className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-            <Input
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
-              placeholder="Search groups..."
-              className="w-48 rounded-lg border-zinc-300 pl-8 pr-4 text-sm focus:border-primary focus:ring-primary/30"
-            />
-          </div>
-          <Button
-            type="submit"
-            variant="outline"
-            size="icon-sm"
-            className="border-zinc-300 text-zinc-500"
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-          </Button>
-        </form>
-      </div>
+            <Plus className="h-4 w-4" /> Create Group
+          </button>
+        }
+        list={
+          <div className="space-y-4">
+            {/* Search filter */}
+            <div className="flex items-center justify-between gap-3">
+              <form onSubmit={submitSearch} className="relative flex-1 max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
+                <Input
+                  value={localSearch}
+                  onChange={(e) => setLocalSearch(e.target.value)}
+                  placeholder="Search groups..."
+                  className="pl-8 text-xs"
+                />
+              </form>
+              <span className="text-xs text-zinc-400">{total} group{total !== 1 ? 's' : ''}</span>
+            </div>
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-        <Table className="w-full text-sm">
-          <TableHeader>
-            <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
-              <TableHead>Name</TableHead>
-              <TableHead>Customers ↓</TableHead>
-              <TableHead>Discount</TableHead>
-              <TableHead>Price Tier</TableHead>
-              <TableHead>Updated</TableHead>
-              <TableHead className="w-10" />
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-zinc-200">
-            {localGroups.length === 0 ? (
-              <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={6} className="py-16 text-center">
-                  <div className="flex flex-col items-center gap-2 mx-auto">
-                    <svg className="w-10 h-10 text-muted-foreground/20" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
-                    </svg>
-                    <p className="text-sm font-medium text-muted-foreground">{search ? `No groups matching "${search}"` : 'No customer groups yet.'}</p>
-                    {!search && <p className="text-xs text-muted-foreground/60">Click &quot;Create&quot; to add your first group.</p>}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ) : (
-              localGroups.map((group) => (
-                <TableRow key={group.group_id} className={deletingId === group.group_id ? 'opacity-40 pointer-events-none' : ''}>
-                  <TableCell className="font-medium text-foreground">
-                    {editingId === group.group_id ? (
-                      <div className="flex items-center gap-2">
-                        <Input
-                          autoFocus
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter') saveRename(group.group_id); if (e.key === 'Escape') setEditingId(null) }}
-                          className="h-7 w-48 rounded border-zinc-300 px-2 py-1 text-sm focus:border-primary focus:ring-primary/20"
-                          disabled={renaming}
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Save name"
-                          onClick={() => saveRename(group.group_id)}
-                          disabled={renaming || !editName.trim()}
-                          className="text-green-600 hover:text-green-700 hover:bg-green-50"
-                        >
-                          <Check className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Cancel rename"
-                          onClick={() => setEditingId(null)}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
+            {/* Table */}
+            <div className="rounded-2xl border border-zinc-200 bg-white overflow-hidden shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-zinc-50">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Group Name</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Customers</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Discount</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Price Tier</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-200">
+                    {localGroups.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-12 text-center text-sm text-zinc-400">
+                          {search ? `No groups matching "${search}"` : 'No customer groups yet.'}
+                        </td>
+                      </tr>
                     ) : (
-                      <Link
-                        href={`/admin/customers/groups/${group.group_id}`}
-                        className="hover:underline"
-                      >
-                        {group.group_name}
-                      </Link>
+                      localGroups.map((group) => {
+                        const isSelected = selectedId === group.group_id
+                        return (
+                          <tr
+                            key={group.group_id}
+                            className={`odd:bg-white even:bg-zinc-50 hover:!bg-zinc-200 transition-colors cursor-pointer ${
+                              isSelected ? '!bg-primary/10' : ''
+                            }`}
+                            onClick={() => selectGroup(group)}
+                          >
+                            <td className="px-4 py-3 font-semibold text-zinc-900 whitespace-nowrap">
+                              <Link
+                                href={`/admin/customers/groups/${group.group_id}`}
+                                className="hover:underline"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {group.group_name}
+                              </Link>
+                            </td>
+                            <td className="px-4 py-3 text-zinc-600 text-xs font-medium whitespace-nowrap">
+                              {group.customer_count}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-zinc-600 whitespace-nowrap">
+                              {group.discount_type && group.discount_value != null ? (
+                                <span className="font-medium text-zinc-800">
+                                  {group.discount_type === 'percent' ? `${group.discount_value}%` : `$${group.discount_value}`}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs whitespace-nowrap">
+                              {group.price_type ? (
+                                <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 font-medium capitalize">
+                                  {group.price_type}
+                                </span>
+                              ) : (
+                                <span className="text-zinc-400">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
+                              {fmtDateTime(group.updated_at)}
+                            </td>
+                          </tr>
+                        )
+                      })
                     )}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{group.customer_count}</TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {group.discount_type && group.discount_value != null
-                      ? `${group.discount_type === 'percent' ? `${group.discount_value}%` : `$${group.discount_value}`}`
-                      : <span className="text-muted-foreground/40">—</span>}
-                  </TableCell>
-                  <TableCell className="text-xs text-muted-foreground">
-                    {group.price_type
-                      ? <span className="px-2 py-0.5 rounded-full bg-purple-50 text-purple-700">{group.price_type}</span>
-                      : <span className="text-muted-foreground/40">—</span>}
-                  </TableCell>
-                  <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{fmtDateTime(group.updated_at)}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className="text-zinc-400 hover:text-zinc-700"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-36">
-                        <DropdownMenuItem onClick={() => openEditModal(group)}>
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(group)}
-                          className="text-red-600 focus:text-red-600 focus:bg-red-50"
-                        >
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+                  </tbody>
+                </table>
+              </div>
 
-        <div className="flex items-center justify-between border-t border-zinc-200 bg-zinc-50 px-5 py-3 text-xs text-muted-foreground">
-          <span>
-            {startResult} — {endResult} of {total} results
-          </span>
-          <div className="flex items-center gap-3">
-            <span>
-              {page} of {totalPages} pages
-            </span>
-            <div className="flex gap-1">
-              {page > 1 ? (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-auto rounded border-zinc-300 px-2 py-1 text-xs hover:bg-white"
-                >
-                  <Link
-                    href={`/admin/customers/groups?page=${page - 1}${search ? `&search=${search}` : ''}`}
-                  >
-                    Prev
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled
-                  className="h-auto rounded border-zinc-200 px-2 py-1 text-xs text-zinc-300"
-                >
-                  Prev
-                </Button>
-              )}
-              {page < totalPages ? (
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className="h-auto rounded border-zinc-300 px-2 py-1 text-xs hover:bg-white"
-                >
-                  <Link
-                    href={`/admin/customers/groups?page=${page + 1}${search ? `&search=${search}` : ''}`}
-                  >
-                    Next
-                  </Link>
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled
-                  className="h-auto rounded border-zinc-200 px-2 py-1 text-xs text-zinc-300"
-                >
-                  Next
-                </Button>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-zinc-200 text-xs text-zinc-500 bg-white">
+                  <span>
+                    {startResult} — {endResult} of {total} results
+                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={page <= 1}
+                      onClick={() => router.push(`/admin/customers/groups?page=${page - 1}${search ? `&search=${search}` : ''}`)}
+                      className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+                    >
+                      ← Prev
+                    </button>
+                    <span className="px-2 py-1 font-medium text-zinc-700">{page} / {totalPages}</span>
+                    <button
+                      type="button"
+                      disabled={page >= totalPages}
+                      onClick={() => router.push(`/admin/customers/groups?page=${page + 1}${search ? `&search=${search}` : ''}`)}
+                      className="px-2.5 py-1 rounded-lg border border-zinc-200 disabled:opacity-40 hover:bg-zinc-50 transition-colors"
+                    >
+                      Next →
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           </div>
-        </div>
-      </div>
+        }
+        panel={
+          <CustomerGroupFormPanel
+            key={selectedId ?? 'new'}
+            mode={selectedId ? 'edit' : 'create'}
+            groupId={selectedId ?? undefined}
+            initial={selectedForm ?? EMPTY_CUSTOMER_GROUP_FORM}
+            accessToken={accessToken}
+            onSaved={handleSaved}
+            onRequestDelete={() => {
+              const target = localGroups.find(g => g.group_id === selectedId)
+              if (target) setDeleteTarget(target)
+            }}
+          />
+        }
+      />
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={Boolean(deleteTarget)} onOpenChange={open => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Customer Group?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-zinc-600 mt-1">
+            Delete <strong>{deleteTarget?.group_name}</strong>? Customers in this group will be moved to the default group.
+          </p>
+          <div className="flex gap-3 justify-end mt-4">
+            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" disabled={deleting} onClick={handleDelete}>
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

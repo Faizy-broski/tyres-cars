@@ -132,7 +132,7 @@ export default function ViewPatternPage() {
           </div>
         </div>
         <Link
-          href={`/admin/products/brands/${id}/patterns/${patternId}/edit`}
+          href={`/admin/products/patterns?brand=${id}&pattern=${patternId}`}
           className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 transition-colors shadow-sm shrink-0"
         >
           <Pencil className="w-4 h-4" /> Edit Pattern
