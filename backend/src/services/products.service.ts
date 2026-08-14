@@ -1179,6 +1179,7 @@ type BrandPayload = {
 
 export async function createBrand(payload: BrandPayload) {
   await redis?.del('admin:brands')
+  await bustBrandsFullCache()
   const { data, error } = await supabase.from('brands').insert({
     brand_name: payload.brand_name,
     brand_slug: payload.brand_slug,
@@ -1204,11 +1205,19 @@ export async function createBrand(payload: BrandPayload) {
 
 type BrandsFullResult = { data: Record<string, unknown>[]; total: number; page: number; limit: number; totalPages: number }
 
+// Shared, Redis-backed cache-generation counter. Every page of listBrandsFull()
+// embeds the current version in its cache key. Bumping this single counter in
+// bustBrandsFullCache() instantly orphans every previously-cached page on every
+// PM2 fork — no Redis KEYS/SCAN needed to find-and-delete per-page entries.
+const BRANDS_FULL_VERSION_KEY = 'admin:brands-full:version'
+
 export async function listBrandsFull(params: { page: number; limit: number; search?: string }): Promise<BrandsFullResult> {
   const { page, limit, search } = params
-  const cacheKey = `admin:brands-full:${page}:${limit}:${search ?? ''}`
-  const localCached = getMetaCache<BrandsFullResult>(cacheKey)
-  if (localCached) return localCached
+  const version = (await redis?.get<number>(BRANDS_FULL_VERSION_KEY)) ?? 0
+  const cacheKey = `admin:brands-full:v${version}:${page}:${limit}:${search ?? ''}`
+
+  const cached = await redis?.get<BrandsFullResult>(cacheKey) ?? getMetaCache<BrandsFullResult>(cacheKey)
+  if (cached) return cached
 
   const cols = 'brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at'
   let q = supabase
@@ -1221,7 +1230,8 @@ export async function listBrandsFull(params: { page: number; limit: number; sear
   if (error) throw error
   const total = count ?? 0
   const result = { data: data ?? [], total, page, limit, totalPages: Math.ceil(total / limit) }
-  setMetaCache(cacheKey, result, 300_000) // 5 min TTL
+  await redis?.set(cacheKey, result, { ex: 300 }) // 5 min TTL, shared across forks
+  setMetaCache(cacheKey, result, 300_000)          // 5 min TTL, local fast-path
   return result
 }
 
@@ -1246,15 +1256,19 @@ export async function listBrands() {
   return data ?? []
 }
 
-function bustBrandsFullCache() {
+// Bumps the shared Redis version counter (visible to every PM2 fork immediately)
+// and clears this fork's local map as a hygiene pass. Any page cached under the
+// old version becomes unreachable everywhere as soon as this returns.
+async function bustBrandsFullCache() {
   for (const key of metaCache.keys()) {
     if (key.startsWith('admin:brands-full:')) metaCache.delete(key)
   }
+  await redis?.incr(BRANDS_FULL_VERSION_KEY).catch(() => null)
 }
 
 export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
   await redis?.del('admin:brands')
-  bustBrandsFullCache()
+  await bustBrandsFullCache()
   const { error } = await supabase.from('brands').update(payload).eq('brand_id', id)
   if (error) throw error
 
@@ -1270,7 +1284,7 @@ export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
 
 export async function deleteBrand(id: string) {
   await redis?.del('admin:brands')
-  bustBrandsFullCache()
+  await bustBrandsFullCache()
   const { error } = await supabase.from('brands').delete().eq('brand_id', id)
   if (error) throw error
 }

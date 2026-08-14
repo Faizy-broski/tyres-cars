@@ -1,8 +1,17 @@
 import { supabase } from './supabase.service'
 import { catalogueSyncQueue } from '../queues'
+import { redis } from './redis.service'
 import type { CatalogueSyncJobData } from '../workers/catalogue-sync.worker'
 
 const inventoryCache = new Map<string, { data: unknown; exp: number }>()
+
+// Shared, Redis-backed cache-generation counter — see the identical pattern in
+// products.service.ts's listBrandsFull/bustBrandsFullCache for why this exists:
+// this cache is paginated (many keys per query), so a plain local-Map bust only
+// clears the fork that handled the write, leaving other PM2 forks serving a
+// stale page until its TTL expires. Bumping this one shared key instantly
+// orphans every previously-cached page on every fork.
+const INVENTORY_VERSION_KEY = 'inv:version'
 
 export type InventoryStatusFilter = 'all' | 'mapped' | 'unmapped' | 'pending'
 
@@ -52,8 +61,9 @@ function buildSizeVariants(raw: string): string[] {
   return [...variants].filter(Boolean)
 }
 
-function bustInventoryCache() {
+async function bustInventoryCache() {
   inventoryCache.clear()
+  await redis?.incr(INVENTORY_VERSION_KEY).catch(() => null)
 }
 
 export async function getInventoryMappings({
@@ -63,9 +73,12 @@ export async function getInventoryMappings({
   status     = 'all' as InventoryStatusFilter,
   q          = '',
 }) {
-  const cacheKey = `inv:${page}:${limit}:${supplierId}:${status}:${q}`
-  const hit = inventoryCache.get(cacheKey)
-  if (hit && hit.exp > Date.now()) return hit.data as { data: InventoryProductRow[]; total: number }
+  const version  = (await redis?.get<number>(INVENTORY_VERSION_KEY)) ?? 0
+  const cacheKey = `inv:v${version}:${page}:${limit}:${supplierId}:${status}:${q}`
+  const localHit = inventoryCache.get(cacheKey)
+  if (localHit && localHit.exp > Date.now()) return localHit.data as { data: InventoryProductRow[]; total: number }
+  const remoteHit = await redis?.get<{ data: InventoryProductRow[]; total: number }>(cacheKey)
+  if (remoteHit) return remoteHit
 
   const offset = (page - 1) * limit
   const search = q.trim()
@@ -249,12 +262,13 @@ export async function getInventoryMappings({
 
   const result = { data: rows, total: count ?? 0 }
   inventoryCache.set(cacheKey, { data: result, exp: Date.now() + 60_000 })
+  await redis?.set(cacheKey, result, { ex: 60 }).catch(() => null)
   return result
 }
 
 // Approve a mapping and enqueue stock sync
 export async function approveInventoryMapping(mapId: string) {
-  bustInventoryCache()
+  await bustInventoryCache()
   const { data, error } = await supabase
     .from('supplier_product_map')
     .update({ is_verified: true })
@@ -279,7 +293,7 @@ export async function approveInventoryMapping(mapId: string) {
 
 // Remove a mapping (also removes synced stock row)
 export async function removeInventoryMapping(mapId: string) {
-  bustInventoryCache()
+  await bustInventoryCache()
   const { data: row } = await supabase
     .from('supplier_product_map')
     .select('supplier_id, product_id')
