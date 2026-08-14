@@ -37,7 +37,7 @@ async function getToken() {
 export default function CategoriesPage() {
   const searchParams = useSearchParams()
   const queryClient  = useQueryClient()
-  const { data: categories = [], isPending: loading } = useAdminCategories()
+  const { data: categories = [], isPending: loading, refetch } = useAdminCategories()
 
   const [filterType, setFilterType] = useState<CategoryType | ''>('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -59,8 +59,30 @@ export default function CategoriesPage() {
     setSelectedForm(null)
   }
 
-  function handleSaved() {
-    invalidate()
+  async function handleSaved(saved: { categoryId: string; form: CategoryFormState }) {
+    const existing = categories.find(c => c.category_id === saved.categoryId)
+
+    if (existing) {
+      // Edit of an already-visible row: we already know exactly what changed — splice it into the
+      // cached list immediately instead of waiting on a second round-trip (GET) just to re-learn it.
+      const merged: Category = {
+        ...existing,
+        ...saved.form,
+        sort_order: saved.form.sort_order !== '' ? Number(saved.form.sort_order) : null,
+      }
+      queryClient.setQueryData<Category[]>(adminKeys.productCategories(), old =>
+        old?.map(c => c.category_id === saved.categoryId ? merged : c))
+      selectCategory(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => refetch(), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable.
+      const { data: fresh } = await refetch()
+      const found = fresh?.find(c => c.category_id === saved.categoryId)
+      if (found) selectCategory(found)
+    }
   }
 
   async function patchCategoryField(categoryId: string, body: Record<string, boolean>) {

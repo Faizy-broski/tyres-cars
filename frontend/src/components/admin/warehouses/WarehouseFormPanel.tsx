@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { toastPromise, toastError } from '@/lib/toast'
 import { Trash2 } from 'lucide-react'
@@ -56,7 +56,9 @@ interface Props {
   mode:         'create' | 'edit'
   warehouseId?: string
   initial:      WarehouseFormState
-  onSaved:      (result: { warehouseId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:      (result: { warehouseId: string; form: WarehouseFormState }) => void
   onRequestDelete: () => void
 }
 
@@ -65,12 +67,18 @@ export function WarehouseFormPanel({ mode, warehouseId, initial, onSaved, onRequ
   const [form, setForm]     = useState<WarehouseFormState>(initial)
   const [saving, setSaving] = useState(false)
 
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
+
   function set<K extends keyof WarehouseFormState>(key: K, val: WarehouseFormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (!form.warehouse_name.trim()) { toastError('Warehouse name is required'); return }
     if (!form.state)                 { toastError('State is required'); return }
 
@@ -117,7 +125,7 @@ export function WarehouseFormPanel({ mode, warehouseId, initial, onSaved, onRequ
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save warehouse',
       })
       const resolvedId = isEdit ? warehouseId! : saved?.warehouse_id
-      if (resolvedId) onSaved({ warehouseId: resolvedId })
+      if (resolvedId) onSaved({ warehouseId: resolvedId, form: { ...form, warehouse_name: body.warehouse_name } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -133,8 +141,8 @@ export function WarehouseFormPanel({ mode, warehouseId, initial, onSaved, onRequ
           {isEdit && form.warehouse_name && <p className="text-xs text-zinc-500 mt-0.5 truncate">{form.warehouse_name}</p>}
         </div>
         {isEdit && (
-          <button type="button" onClick={onRequestDelete}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+          <button type="button" onClick={onRequestDelete} disabled={saving}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
             title="Delete warehouse">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>

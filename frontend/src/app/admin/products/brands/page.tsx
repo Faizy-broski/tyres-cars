@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { toastPromise, toastError } from '@/lib/toast'
 import type { Brand } from '@/types/admin.types'
-import { useAdminBrands } from '@/lib/query/hooks'
+import { useAdminBrands, type PaginatedBrands } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 
@@ -47,7 +47,7 @@ export default function BrandsPage() {
   const [deleteConfirm, setDeleteConfirm] = useState<Brand | null>(null)
   const [deleting, setDeleting]           = useState(false)
 
-  const { data: result, isPending: loading } = useAdminBrands({ page, limit, search })
+  const { data: result, isPending: loading, refetch } = useAdminBrands({ page, limit, search })
   const brands     = result?.data     ?? []
   const totalPages = result?.totalPages ?? 1
   const total      = result?.total    ?? 0
@@ -62,11 +62,33 @@ export default function BrandsPage() {
     setSelectedForm(null)
   }
 
-  function handleSaved() {
-    queryClient.invalidateQueries({ queryKey: adminKeys.brandList() })
+  async function handleSaved(saved: { brandId: string; form: BrandFormState }) {
+    const existing = brands.find(b => b.brand_id === saved.brandId)
     queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
-    // list refetch will bring the updated/created row; leave the panel as-is (edit mode already, or
-    // create mode falls back to a blank form again since we don't know the new id's full record yet).
+
+    if (existing) {
+      // Edit of an already-visible row: we already know exactly what changed — splice it into the
+      // cached list immediately instead of waiting on a second round-trip (GET) just to re-learn it.
+      // BrandFormState types brand_positioning as a plain string (it's a <select> constrained to the
+      // valid options at runtime); Brand narrows it to a literal union — safe to assert here.
+      const merged = { ...existing, ...saved.form } as Brand
+      queryClient.setQueriesData<PaginatedBrands>({ queryKey: ['admin', 'brands', 'list'] }, old => {
+        if (!old?.data) return old
+        return { ...old, data: old.data.map(b => b.brand_id === saved.brandId ? merged : b) }
+      })
+      selectBrand(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm (backend cache
+      // TTLs, read-after-write timing) and land a moment later with pre-save data, silently stomping
+      // the correct value we just painted — the exact "instant update, then jerks back" bug.
+      setTimeout(() => refetch(), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable
+      // to know where it landed (sort order, pagination).
+      const { data: fresh } = await refetch()
+      const found = fresh?.data?.find(b => b.brand_id === saved.brandId)
+      if (found) selectBrand(found)
+    }
   }
 
   async function patchBrandField(brandId: string, body: Record<string, boolean>) {

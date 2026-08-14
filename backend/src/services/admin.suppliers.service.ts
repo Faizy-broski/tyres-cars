@@ -1,5 +1,6 @@
 import { supabase } from './supabase.service'
 import { supplierImportQueue, catalogueSyncQueue } from '../queues'
+import { bustInventoryCache } from './admin.inventory.service'
 import type { SupplierImportJobData } from '../workers/supplier-import.worker'
 import type { CatalogueSyncJobData } from '../workers/catalogue-sync.worker'
 
@@ -32,6 +33,9 @@ export type CreateSupplierPayload = {
   payment_terms?:     string
   stock_access_type?: 'owned_after_purchase' | 'consignment' | 'live_supplier_stock'
   api_connected?:     boolean
+  api_endpoint?:      string
+  api_key?:           string
+  api_auth_type?:     'api_key' | 'bearer' | 'basic'
   is_active?:         boolean
 }
 
@@ -55,7 +59,8 @@ export const DEFAULT_MAPPING_PARAMS: MappingParams = {
 
 const ALLOWED_SUPPLIER_FIELDS = new Set([
   'supplier_name', 'supplier_type', 'connection_type', 'contact_name', 'contact_email',
-  'contact_phone', 'state', 'country', 'payment_terms', 'stock_access_type', 'api_connected', 'is_active',
+  'contact_phone', 'state', 'country', 'payment_terms', 'stock_access_type', 'api_connected',
+  'api_endpoint', 'api_key', 'api_auth_type', 'is_active',
 ])
 
 // ============================================================
@@ -117,6 +122,9 @@ export async function createSupplier(payload: CreateSupplierPayload) {
       payment_terms:     payload.payment_terms ?? null,
       stock_access_type: payload.stock_access_type ?? 'owned_after_purchase',
       api_connected:     payload.api_connected ?? false,
+      api_endpoint:      payload.api_endpoint  ?? null,
+      api_key:           payload.api_key       ?? null,
+      api_auth_type:     payload.api_auth_type ?? null,
       is_active:         payload.is_active ?? true,
     })
     .select()
@@ -225,6 +233,7 @@ export async function approveMapping(mapId: string) {
     .single()
 
   if (error) throw error
+  await bustInventoryCache()
   if (data?.product_id) await enqueueSyncJob(data.supplier_id, data.product_id)
 }
 
@@ -238,6 +247,7 @@ export async function rejectMapping(mapId: string) {
     .eq('id', mapId)
 
   if (error) throw error
+  await bustInventoryCache()
 }
 
 // ============================================================
@@ -252,6 +262,7 @@ export async function manualMap(mapId: string, productId: string) {
     .single()
 
   if (error) throw error
+  await bustInventoryCache()
   if (data?.supplier_id) await enqueueSyncJob(data.supplier_id, productId)
 }
 
@@ -276,6 +287,7 @@ export async function approveAllPending(supplierId: string) {
     .in('id', ids)
 
   if (updateErr) throw updateErr
+  await bustInventoryCache()
 
   // Fire sync jobs in parallel (catalogueSyncQueue handles concurrency internally)
   await Promise.all(
@@ -477,6 +489,7 @@ export async function upsertSupplierStock(payload: {
     .single()
 
   if (error) throw error
+  await bustInventoryCache()
   return data
 }
 
@@ -487,6 +500,7 @@ export async function deleteSupplierStock(stockId: string) {
     .eq('id', stockId)
 
   if (error) throw error
+  await bustInventoryCache()
 }
 
 // ============================================================

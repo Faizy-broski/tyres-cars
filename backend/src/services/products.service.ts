@@ -1178,8 +1178,6 @@ type BrandPayload = {
 }
 
 export async function createBrand(payload: BrandPayload) {
-  await redis?.del('admin:brands')
-  await bustBrandsFullCache()
   const { data, error } = await supabase.from('brands').insert({
     brand_name: payload.brand_name,
     brand_slug: payload.brand_slug,
@@ -1200,6 +1198,14 @@ export async function createBrand(payload: BrandPayload) {
     channel_marketplaces: payload.channel_marketplaces ?? false,
   }).select('brand_id, brand_name, brand_slug').single()
   if (error) throw error
+
+  // Bust AFTER the write commits, never before — busting first leaves a window where a GET
+  // racing the write repopulates the cache with pre-write data, which then serves stale for
+  // the full TTL even though the DB itself is already up to date (looks like the edit "reverted").
+  // Cache-busting must never be able to fail the request — a Redis hiccup here should degrade
+  // to "cache stays stale a little longer", not "brand creation fails outright".
+  await redis?.del('admin:brands').catch(() => null)
+  await bustBrandsFullCache()
   return data
 }
 
@@ -1213,10 +1219,11 @@ const BRANDS_FULL_VERSION_KEY = 'admin:brands-full:version'
 
 export async function listBrandsFull(params: { page: number; limit: number; search?: string }): Promise<BrandsFullResult> {
   const { page, limit, search } = params
-  const version = (await redis?.get<number>(BRANDS_FULL_VERSION_KEY)) ?? 0
+  // A Redis read failure here must degrade to "treat as cache miss, hit the DB" — never a 500.
+  const version = (await redis?.get<number>(BRANDS_FULL_VERSION_KEY).catch(() => null)) ?? 0
   const cacheKey = `admin:brands-full:v${version}:${page}:${limit}:${search ?? ''}`
 
-  const cached = await redis?.get<BrandsFullResult>(cacheKey) ?? getMetaCache<BrandsFullResult>(cacheKey)
+  const cached = await redis?.get<BrandsFullResult>(cacheKey).catch(() => null) ?? getMetaCache<BrandsFullResult>(cacheKey)
   if (cached) return cached
 
   const cols = 'brand_id, brand_name, brand_slug, brand_logo, brand_banner_image, brand_description, brand_short_description, country_of_brand, manufacturer_name, brand_positioning, warranty_info, seo_title, seo_description, is_active, show_on_website, channel_wholesale, channel_retail, channel_marketplaces, created_at, updated_at'
@@ -1247,7 +1254,7 @@ export async function listBrandsAll() {
 }
 
 export async function listBrands() {
-  const cached = await redis?.get<{ brand_id: string; brand_name: string }[]>('admin:brands')
+  const cached = await redis?.get<{ brand_id: string; brand_name: string }[]>('admin:brands').catch(() => null)
   if (cached) return cached
 
   const { data } = await supabase
@@ -1267,8 +1274,6 @@ async function bustBrandsFullCache() {
 }
 
 export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
-  await redis?.del('admin:brands')
-  await bustBrandsFullCache()
   const { error } = await supabase.from('brands').update(payload).eq('brand_id', id)
   if (error) throw error
 
@@ -1280,13 +1285,21 @@ export async function updateBrand(id: string, payload: Partial<BrandPayload>) {
     if (pErr) throw pErr
     if (sErr) throw sErr
   }
+
+  // Bust AFTER every write above commits, never before — busting first leaves a window where a
+  // GET racing the write repopulates the cache with pre-write data, which then serves stale for
+  // the full TTL even though the DB itself is already up to date (looks like the edit "reverted").
+  await redis?.del('admin:brands').catch(() => null)
+  await bustBrandsFullCache()
 }
 
 export async function deleteBrand(id: string) {
-  await redis?.del('admin:brands')
-  await bustBrandsFullCache()
   const { error } = await supabase.from('brands').delete().eq('brand_id', id)
   if (error) throw error
+
+  // Bust AFTER the write commits — see updateBrand for why order matters here.
+  await redis?.del('admin:brands').catch(() => null)
+  await bustBrandsFullCache()
 }
 
 // ── Patterns ──────────────────────────────────────────────────────────────────
@@ -1294,7 +1307,7 @@ export async function deleteBrand(id: string) {
 const PATTERNS_META_CACHE_KEY = 'admin:patterns-meta'
 
 export async function listPatternsForMeta(): Promise<{ pattern_id: string; brand_id: string; pattern_name: string }[]> {
-  const cached = await redis?.get<{ pattern_id: string; brand_id: string; pattern_name: string }[]>(PATTERNS_META_CACHE_KEY)
+  const cached = await redis?.get<{ pattern_id: string; brand_id: string; pattern_name: string }[]>(PATTERNS_META_CACHE_KEY).catch(() => null)
     ?? getMetaCache<{ pattern_id: string; brand_id: string; pattern_name: string }[]>(PATTERNS_META_CACHE_KEY)
   if (cached) return cached
 
@@ -1414,7 +1427,7 @@ export async function deletePattern(patternId: string) {
 }
 
 export async function listCollections() {
-  const cached = await redis?.get<unknown[]>('admin:collections') ?? getMetaCache<unknown[]>('admin:collections')
+  const cached = await redis?.get<unknown[]>('admin:collections').catch(() => null) ?? getMetaCache<unknown[]>('admin:collections')
   if (cached) return cached
 
   const { data } = await supabase
@@ -1442,7 +1455,7 @@ export async function deleteCollection(id: string) {
 }
 
 export async function listCategories() {
-  const cached = await redis?.get<unknown[]>('admin:categories') ?? getMetaCache<unknown[]>('admin:categories')
+  const cached = await redis?.get<unknown[]>('admin:categories').catch(() => null) ?? getMetaCache<unknown[]>('admin:categories')
   if (cached) return cached
 
   const { data } = await supabase

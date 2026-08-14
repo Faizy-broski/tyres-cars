@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toastPromise, toastError } from '@/lib/toast'
@@ -64,6 +64,28 @@ export function supplierToForm(s: Supplier): SupplierFormState {
   }
 }
 
+/** Inverse of `supplierToForm` — maps the submitted form back onto Supplier's field names, so a
+ *  save can be spliced straight into the list instantly instead of waiting on a second network
+ *  round-trip just to re-learn values we already have. */
+export function formToSupplierPatch(form: SupplierFormState): Partial<Supplier> {
+  return {
+    supplier_name:     form.supplier_name,
+    supplier_type:     form.supplier_type as Supplier['supplier_type'],
+    contact_name:      form.contact_name || null,
+    contact_email:     form.email || null,
+    contact_phone:     form.phone || null,
+    state:             form.state || null,
+    country:           form.country || null,
+    payment_terms:     form.payment_terms || null,
+    stock_access_type: form.stock_access_type as Supplier['stock_access_type'],
+    api_connected:     form.api_connected,
+    api_endpoint:      form.api_connected ? (form.api_endpoint || null) : null,
+    api_key:           form.api_connected ? (form.api_key || null) : null,
+    api_auth_type:     form.api_connected ? (form.api_auth_type as Supplier['api_auth_type']) : null,
+    is_active:         form.is_active,
+  }
+}
+
 async function getToken() {
   const { data: { session } } = await createClient().auth.getSession()
   return session?.access_token ?? ''
@@ -90,7 +112,9 @@ interface Props {
   mode:        'create' | 'edit'
   supplierId?: string
   initial:     SupplierFormState
-  onSaved:     (result: { supplierId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:     (result: { supplierId: string; form: SupplierFormState }) => void
   onRequestDelete: () => void
   onUploadCsv?: () => void
 }
@@ -100,12 +124,18 @@ export function SupplierFormPanel({ mode, supplierId, initial, onSaved, onReques
   const [form, setForm]     = useState<SupplierFormState>(initial)
   const [saving, setSaving] = useState(false)
 
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
+
   function set<K extends keyof SupplierFormState>(key: K, val: SupplierFormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (!form.supplier_name.trim()) { toastError('Supplier name is required'); return }
     if (form.api_connected && !form.api_endpoint.trim()) { toastError('API endpoint URL is required'); return }
     if (form.api_connected && !form.api_key.trim()) { toastError('API key / token is required'); return }
@@ -117,8 +147,10 @@ export function SupplierFormPanel({ mode, supplierId, initial, onSaved, onReques
       supplier_name:     form.supplier_name.trim(),
       supplier_type:     form.supplier_type     || null,
       contact_name:      form.contact_name      || null,
-      email:             form.email             || null,
-      phone:             form.phone             || null,
+      // Backend column names are contact_email/contact_phone (matches supplierToForm's read side
+      // and the Supplier type) — sending "email"/"phone" here silently drops both on every save.
+      contact_email:     form.email             || null,
+      contact_phone:     form.phone             || null,
       state:             form.state             || null,
       country:           form.country           || null,
       payment_terms:     form.payment_terms     || null,
@@ -155,7 +187,7 @@ export function SupplierFormPanel({ mode, supplierId, initial, onSaved, onReques
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save supplier',
       })
       const resolvedId = isEdit ? supplierId! : saved?.supplier_id
-      if (resolvedId) onSaved({ supplierId: resolvedId })
+      if (resolvedId) onSaved({ supplierId: resolvedId, form: { ...form, supplier_name: body.supplier_name } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -186,8 +218,8 @@ export function SupplierFormPanel({ mode, supplierId, initial, onSaved, onReques
                 <Upload className="w-3.5 h-3.5" /> CSV
               </button>
             )}
-            <button type="button" onClick={onRequestDelete}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+            <button type="button" onClick={onRequestDelete} disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
               title="Delete supplier">
               <Trash2 className="w-3.5 h-3.5" /> Delete
             </button>

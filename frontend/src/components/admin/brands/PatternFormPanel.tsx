@@ -72,7 +72,9 @@ interface Props {
   brandId?:   string
   brands:    BrandOption[]
   initial:   PatternFormState
-  onSaved:   (result: { patternId: string; brandId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:   (result: { patternId: string; brandId: string; form: PatternFormState }) => void
   onRequestDelete: () => void
 }
 
@@ -87,6 +89,11 @@ export function PatternFormPanel({ mode, patternId, brandId: initialBrandId, bra
   const [attributes, setAttributes]           = useState<AttributeRow[]>([])
   const mainImgRef  = useRef<HTMLInputElement>(null)
   const treadImgRef = useRef<HTMLInputElement>(null)
+
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
 
   useEffect(() => {
     async function loadData() {
@@ -161,6 +168,7 @@ export function PatternFormPanel({ mode, patternId, brandId: initialBrandId, bra
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     const brandId = selectedBrandId
     if (!brandId)                       { toastError('Please select a brand'); return }
     if (!form.pattern_name.trim())      { toastError('Pattern name is required'); return }
@@ -224,7 +232,7 @@ export function PatternFormPanel({ mode, patternId, brandId: initialBrandId, bra
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save pattern',
       })
       const resolvedId = isEdit ? patternId! : saved?.pattern_id
-      if (resolvedId) onSaved({ patternId: resolvedId, brandId })
+      if (resolvedId) onSaved({ patternId: resolvedId, brandId, form: { ...form, pattern_name: body.pattern_name, pattern_slug: body.pattern_slug } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -240,8 +248,8 @@ export function PatternFormPanel({ mode, patternId, brandId: initialBrandId, bra
           {isEdit && form.pattern_slug && <p className="text-xs text-zinc-500 mt-0.5 font-mono truncate">{form.pattern_slug}</p>}
         </div>
         {isEdit && (
-          <button type="button" onClick={onRequestDelete}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+          <button type="button" onClick={onRequestDelete} disabled={saving}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
             title="Delete pattern">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>

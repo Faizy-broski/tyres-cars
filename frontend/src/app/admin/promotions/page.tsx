@@ -12,7 +12,7 @@ import { toastSuccess, toastError } from '@/lib/toast'
 import { useQueryClient } from '@tanstack/react-query'
 import { adminKeys } from '@/lib/query/keys'
 import { Trash2 } from 'lucide-react'
-import { PromotionFormPanel, EMPTY_PROMOTION_FORM, promotionToForm, type PromotionFormState } from '@/components/admin/promotions/PromotionFormPanel'
+import { PromotionFormPanel, EMPTY_PROMOTION_FORM, promotionToForm, type PromotionFormState, type PromotionSavedPatch } from '@/components/admin/promotions/PromotionFormPanel'
 
 const API   = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 const LIMIT = 20
@@ -76,8 +76,28 @@ export default function AdminPromotionsPage() {
     setSelectedForm(null)
   }
 
-  function handleSaved() {
+  async function handleSaved(result: { promotionId: string; patch: PromotionSavedPatch }) {
     qc.invalidateQueries({ queryKey: adminKeys.promotionList({}) })
+    const existing = promotions.find(p => p.promotion_id === result.promotionId)
+    if (existing) {
+      // Splice the known-good saved values straight into the list cache instantly, instead of
+      // making the user wait on a second network round-trip just to see their own edit reflected.
+      const merged: PromotionRow = { ...existing, ...result.patch }
+      qc.setQueriesData<{ data: PromotionRow[]; total: number }>(
+        { queryKey: ['admin', 'promotions', 'list'] },
+        old => old ? { ...old, data: old.data.map(p => p.promotion_id === result.promotionId ? merged : p) } : old
+      )
+      selectPromotion(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => listQuery.refetch(), 1500)
+    } else {
+      const { data: fresh } = await listQuery.refetch()
+      // Pivot into edit mode showing the just-saved record so a repeat Save can't re-POST a duplicate.
+      const found = fresh?.data.find(p => p.promotion_id === result.promotionId)
+      if (found) selectPromotion(found)
+    }
   }
 
   async function handleDelete() {
@@ -101,8 +121,8 @@ export default function AdminPromotionsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6">
-      <div className="mb-5">
+    <>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
         <AdminBreadcrumb crumbs={[{ label: 'Promotions' }]} />
       </div>
 
@@ -265,6 +285,6 @@ export default function AdminPromotionsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

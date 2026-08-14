@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -11,7 +11,7 @@ import { StatusSelect } from '@/components/admin/StatusSelect'
 import { PatternFormPanel, EMPTY_PATTERN_FORM, type PatternFormState } from '@/components/admin/brands/PatternFormPanel'
 import { toastError, toastSuccess } from '@/lib/toast'
 import { Trash2, Upload } from 'lucide-react'
-import { useAdminBrandsAll, useAdminPatterns, type AdminPattern } from '@/lib/query/hooks'
+import { useAdminBrandsAll, useAdminPatterns, type AdminPattern, type PaginatedPatterns } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
 
@@ -141,7 +141,13 @@ export default function PatternsPage() {
     [rawPatterns, brandMap],
   )
 
+  // Guards against a fetch race: if the user clicks a different row (or a save
+  // re-triggers a load) before an earlier fetch resolves, the earlier response
+  // must never be allowed to overwrite the panel out from under the newer selection.
+  const loadTokenRef = useRef(0)
+
   async function loadPatternIntoPanel(brandId: string, patternId: string, patternName: string) {
+    const myToken = ++loadTokenRef.current
     setSelected({ patternId, brandId, patternName })
     setPanelData(null)
     setPanelLoading(true)
@@ -152,15 +158,17 @@ export default function PatternsPage() {
       })
       if (!res.ok) throw new Error('Failed to load pattern')
       const data = await res.json()
+      if (loadTokenRef.current !== myToken) return // a newer selection/load has since started — discard this stale response
       setPanelData(toFormState(data))
       // fill in the real name for deep links that arrived without one (e.g. ?brand=&pattern=)
       const realName = (data.pattern_name as string) ?? patternName
       setSelected(prev => prev ? { ...prev, patternName: realName } : prev)
     } catch {
+      if (loadTokenRef.current !== myToken) return
       toastError('Failed to load pattern details')
       setSelected(null)
     } finally {
-      setPanelLoading(false)
+      if (loadTokenRef.current === myToken) setPanelLoading(false)
     }
   }
 
@@ -180,11 +188,44 @@ export default function PatternsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function handleSaved({ patternId, brandId }: { patternId: string; brandId: string }) {
-    queryClient.invalidateQueries({ queryKey: adminKeys.patternList() })
+  async function handleSaved(saved: { patternId: string; brandId: string; form: PatternFormState }) {
+    const existing = patterns.find(p => p.pattern_id === saved.patternId)
     queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })
-    const name = patterns.find(p => p.pattern_id === patternId)?.pattern_name ?? ''
-    await loadPatternIntoPanel(brandId, patternId, name)
+
+    if (existing) {
+      // Edit of an already-visible row: the panel's submitted form already has every field the
+      // table displays — splice it in immediately and update the panel directly, instead of
+      // (a) waiting on a second round-trip GET just to re-learn it and (b) flashing the panel's
+      // "Loading pattern…" placeholder for data we already have.
+      queryClient.setQueriesData<PaginatedPatterns>({ queryKey: ['admin', 'patterns', 'list'] }, old => {
+        if (!old?.data) return old
+        return {
+          ...old,
+          data: old.data.map(p => p.pattern_id === saved.patternId ? {
+            ...p,
+            pattern_name:     saved.form.pattern_name,
+            pattern_slug:     saved.form.pattern_slug,
+            application_type: saved.form.application_type,
+            season_type:      saved.form.season_type || null,
+            terrain_type:     saved.form.terrain_type || null,
+            is_active:        saved.form.is_active,
+            show_on_website:  saved.form.show_on_website,
+          } : p),
+        }
+      })
+      loadTokenRef.current++ // invalidate any still-in-flight loadPatternIntoPanel call from a previous selection
+      setSelected({ patternId: saved.patternId, brandId: saved.brandId, patternName: saved.form.pattern_name })
+      setPanelData(saved.form)
+      setPanelLoading(false)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: adminKeys.patternList() }), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable.
+      queryClient.invalidateQueries({ queryKey: adminKeys.patternList() })
+      await loadPatternIntoPanel(saved.brandId, saved.patternId, saved.form.pattern_name)
+    }
   }
 
   async function patchPatternField(brandId: string, patternId: string, body: Record<string, boolean>) {
@@ -208,13 +249,16 @@ export default function PatternsPage() {
         { method: 'DELETE', headers: { Authorization: `Bearer ${tok}` } },
       )
       if (!res.ok) {
-        const b = await res.json().catch(() => ({})) as { error?: string }
-        const raw = b.error ?? ''
-        if (raw.includes('skus_pattern_id_fkey') || raw.includes('skus')) {
+        const b = await res.json().catch(() => ({})) as { error?: string; code?: string }
+        // 23503 = Postgres foreign-key violation. The only FK that can block a pattern
+        // delete in this flow is skus.pattern_id, so this code alone is enough to know
+        // it's the "has SKUs" case — the humanised .error text can't be string-matched
+        // reliably (see error.middleware.ts's humanise()).
+        if (b.code === '23503') {
           setSkuError(true)
           return
         }
-        throw new Error(raw || 'Failed to delete pattern')
+        throw new Error(b.error || 'Failed to delete pattern')
       }
       queryClient.invalidateQueries({ queryKey: adminKeys.patternList() })
       queryClient.invalidateQueries({ queryKey: adminKeys.brandListAll() })

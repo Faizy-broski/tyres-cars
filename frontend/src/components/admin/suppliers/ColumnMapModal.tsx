@@ -27,11 +27,13 @@ interface Props {
   csvHeaders:  string[]
   accessToken: string
   onClose:     () => void
+  /** Called once the import job actually finishes (state === 'completed'), so the caller can refresh its list. */
+  onImported?: () => void
 }
 
 type Phase = 'map' | 'uploading' | 'polling' | 'done' | 'error'
 
-export default function ColumnMapModal({ supplierId, file, csvHeaders, accessToken, onClose }: Props) {
+export default function ColumnMapModal({ supplierId, file, csvHeaders, accessToken, onClose, onImported }: Props) {
   const [columnMap, setColumnMap] = useState<Record<string, string>>(() => {
     const autoMap: Record<string, string> = {}
     for (const field of REQUIRED_FIELDS) {
@@ -96,6 +98,7 @@ export default function ColumnMapModal({ supplierId, file, csvHeaders, accessTok
           clearInterval(pollRef.current!)
           setResult(status.result ?? null)
           setPhase('done')
+          onImported?.()
         } else if (status.state === 'failed') {
           clearInterval(pollRef.current!)
           setError(status.failReason ?? 'Import job failed')

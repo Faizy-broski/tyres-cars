@@ -43,6 +43,25 @@ export function customerToForm(c: CustomerListItem): CustomerFormState {
   }
 }
 
+/** Inverse of `customerToForm` — maps the submitted form back onto CustomerListItem's field names,
+ *  so a save can be spliced straight into the list instantly instead of waiting on a second
+ *  network round-trip just to re-learn values we already have. */
+export function formToCustomerPatch(form: CustomerFormState): Partial<CustomerListItem> {
+  const showCreditFields = ['wholesale', 'fleet', 'trade'].includes(form.customerType)
+  return {
+    email:              form.email,
+    first_name:         form.firstName || null,
+    last_name:          form.lastName || null,
+    business_name:      form.company || null,
+    phone:              form.phone || null,
+    customer_type:      form.customerType,
+    account_status:     form.accountStatus,
+    customer_group_id:  form.customerGroupId || null,
+    credit_limit:       showCreditFields && form.creditLimit ? Number(form.creditLimit) : null,
+    payment_terms:      showCreditFields && form.paymentTerms ? form.paymentTerms : null,
+  }
+}
+
 type GroupOption = { group_id: string; group_name: string }
 
 async function getToken() {
@@ -54,7 +73,9 @@ interface Props {
   mode:        'create' | 'edit'
   customerId?: string
   initial:     CustomerFormState
-  onSaved:     (result: { customerId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:     (result: { customerId: string; form: CustomerFormState }) => void
   onRequestDelete: () => void
 }
 
@@ -63,6 +84,11 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
   const [form, setForm]     = useState<CustomerFormState>(initial)
   const [groups, setGroups] = useState<GroupOption[]>([])
   const [saving, setSaving] = useState(false)
+
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
 
   useEffect(() => {
     let cancelled = false
@@ -83,6 +109,7 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (!form.email.trim()) { toastError('Email is required'); return }
 
     setSaving(true)
@@ -97,8 +124,11 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
       customerType:    form.customerType    || 'retail',
       accountStatus:   form.accountStatus   || 'active',
       customerGroupId: form.customerGroupId || null,
-      creditLimit:     form.creditLimit ? Number(form.creditLimit) : null,
-      paymentTerms:    form.paymentTerms    || null,
+      // Credit fields are hidden (not deleted) when the type isn't credit-eligible — clear
+      // them explicitly on submit so switching a customer to e.g. Retail doesn't silently
+      // keep stale credit data that's no longer visible anywhere in the UI.
+      creditLimit:     showCreditFields && form.creditLimit ? Number(form.creditLimit) : null,
+      paymentTerms:    showCreditFields && form.paymentTerms ? form.paymentTerms : null,
     }
 
     let saved: { customer_id?: string } | undefined
@@ -126,7 +156,7 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save customer',
       })
       const resolvedId = isEdit ? customerId! : saved?.customer_id
-      if (resolvedId) onSaved({ customerId: resolvedId })
+      if (resolvedId) onSaved({ customerId: resolvedId, form: { ...form, email: body.email } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -149,8 +179,8 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
             >
               <ExternalLink className="w-3.5 h-3.5" /> Profile
             </Link>
-            <button type="button" onClick={onRequestDelete}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+            <button type="button" onClick={onRequestDelete} disabled={saving}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
               title="Delete customer">
               <Trash2 className="w-3.5 h-3.5" /> Delete
             </button>

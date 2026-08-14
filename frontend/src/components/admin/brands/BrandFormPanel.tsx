@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Textarea } from '@/components/ui/textarea'
 import { toastPromise, toastError } from '@/lib/toast'
@@ -80,7 +80,9 @@ interface Props {
   mode:     'create' | 'edit'
   brandId?: string
   initial:  BrandFormState
-  onSaved:  (result: { brandId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:  (result: { brandId: string; form: BrandFormState }) => void
   onRequestDelete: () => void
 }
 
@@ -91,6 +93,11 @@ export function BrandFormPanel({ mode, brandId, initial, onSaved, onRequestDelet
   const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null)
   const logoRef   = useRef<HTMLInputElement>(null)
   const bannerRef = useRef<HTMLInputElement>(null)
+
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
 
   function set<K extends keyof BrandFormState>(key: K, val: BrandFormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }))
@@ -108,6 +115,7 @@ export function BrandFormPanel({ mode, brandId, initial, onSaved, onRequestDelet
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (!form.brand_name.trim()) { toastError('Brand name is required'); return }
     if (!form.brand_slug.trim()) { toastError('Slug is required'); return }
 
@@ -159,7 +167,7 @@ export function BrandFormPanel({ mode, brandId, initial, onSaved, onRequestDelet
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save brand',
       })
       const resolvedId = isEdit ? brandId! : saved?.brand_id
-      if (resolvedId) onSaved({ brandId: resolvedId })
+      if (resolvedId) onSaved({ brandId: resolvedId, form: { ...form, brand_name: body.brand_name, brand_slug: body.brand_slug } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -175,8 +183,8 @@ export function BrandFormPanel({ mode, brandId, initial, onSaved, onRequestDelet
           {isEdit && form.brand_slug && <p className="text-xs text-zinc-500 mt-0.5 font-mono truncate">{form.brand_slug}</p>}
         </div>
         {isEdit && (
-          <button type="button" onClick={onRequestDelete}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+          <button type="button" onClick={onRequestDelete} disabled={saving}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
             title="Delete brand">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>

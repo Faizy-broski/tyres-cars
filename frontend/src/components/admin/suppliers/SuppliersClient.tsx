@@ -12,7 +12,7 @@ import { TableBodySpinner } from '@/components/ui/table-loader'
 import { toastError, toastSuccess } from '@/lib/toast'
 import Papa from 'papaparse'
 import ColumnMapModal from './ColumnMapModal'
-import { SupplierFormPanel, EMPTY_SUPPLIER_FORM, supplierToForm, type SupplierFormState } from './SupplierFormPanel'
+import { SupplierFormPanel, EMPTY_SUPPLIER_FORM, supplierToForm, formToSupplierPatch, type SupplierFormState } from './SupplierFormPanel'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -81,10 +81,11 @@ export default function SuppliersClient({ initialSuppliers = [], accessToken: in
 
   const refetchSuppliers = useCallback(async () => {
     const res = await fetch(`${API}/api/admin/suppliers`, { headers: { Authorization: `Bearer ${token}` } })
-    if (res.ok) {
-      const data = await res.json()
-      setSuppliers(Array.isArray(data) ? data : (data.data ?? []))
-    }
+    if (!res.ok) return undefined
+    const data = await res.json()
+    const list: Supplier[] = Array.isArray(data) ? data : (data.data ?? [])
+    setSuppliers(list)
+    return list
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token])
 
@@ -126,8 +127,25 @@ export default function SuppliersClient({ initialSuppliers = [], accessToken: in
     setSelectedForm(null)
   }
 
-  function handleSaved() {
-    refetchSuppliers()
+  async function handleSaved(saved: { supplierId: string; form: SupplierFormState }) {
+    const existing = suppliers.find(s => s.supplier_id === saved.supplierId)
+
+    if (existing) {
+      // Edit of an already-visible row: we already know exactly what changed — splice it into the
+      // local list immediately instead of waiting on a second round-trip (GET) just to re-learn it.
+      const merged: Supplier = { ...existing, ...formToSupplierPatch(saved.form) }
+      setSuppliers(prev => prev.map(s => s.supplier_id === saved.supplierId ? merged : s))
+      selectSupplier(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => refetchSuppliers(), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable.
+      const fresh = await refetchSuppliers()
+      const found = fresh?.find(s => s.supplier_id === saved.supplierId)
+      if (found) selectSupplier(found)
+    }
   }
 
   async function handleDelete() {
@@ -159,8 +177,10 @@ export default function SuppliersClient({ initialSuppliers = [], accessToken: in
     : suppliers
 
   return (
-    <div className="p-4 sm:p-6 space-y-5">
-      <AdminBreadcrumb crumbs={[{ label: 'Suppliers' }]} />
+    <>
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6">
+        <AdminBreadcrumb crumbs={[{ label: 'Suppliers' }]} />
+      </div>
 
       <SplitView
         title="Suppliers"
@@ -306,6 +326,7 @@ export default function SuppliersClient({ initialSuppliers = [], accessToken: in
           csvHeaders={csvHeaders}
           accessToken={token}
           onClose={() => { setCsvTarget(null); setCsvFile(null); setCsvHeaders([]) }}
+          onImported={refetchSuppliers}
         />
       )}
 
@@ -334,6 +355,6 @@ export default function SuppliersClient({ initialSuppliers = [], accessToken: in
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

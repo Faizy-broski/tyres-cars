@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Textarea } from '@/components/ui/textarea'
 import { toastPromise, toastError } from '@/lib/toast'
@@ -58,7 +58,9 @@ interface Props {
   categoryId?: string
   categories:  Category[]  // for the parent-category dropdown
   initial:     CategoryFormState
-  onSaved:     (result: { categoryId: string }) => void
+  // Passes back the full submitted form alongside the id, so the caller can splice the known-good
+  // values straight into the list instantly instead of waiting on a second network round-trip.
+  onSaved:     (result: { categoryId: string; form: CategoryFormState }) => void
   onRequestDelete: () => void
 }
 
@@ -68,6 +70,11 @@ export function CategoryFormPanel({ mode, categoryId, categories, initial, onSav
   const [saving, setSaving]       = useState(false)
   const [uploading, setUploading] = useState(false)
   const imgRef = useRef<HTMLInputElement>(null)
+
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => { setForm(initial) }, [initial])
 
   function set<K extends keyof CategoryFormState>(key: K, val: CategoryFormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }))
@@ -90,6 +97,7 @@ export function CategoryFormPanel({ mode, categoryId, categories, initial, onSav
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (!form.category_name.trim()) { toastError('Category name is required'); return }
     if (!form.category_slug.trim()) { toastError('Slug is required'); return }
 
@@ -133,7 +141,7 @@ export function CategoryFormPanel({ mode, categoryId, categories, initial, onSav
         error:   (err: unknown) => err instanceof Error ? err.message : 'Failed to save category',
       })
       const resolvedId = isEdit ? categoryId! : saved?.category_id
-      if (resolvedId) onSaved({ categoryId: resolvedId })
+      if (resolvedId) onSaved({ categoryId: resolvedId, form: { ...form, category_name: body.category_name, category_slug: body.category_slug } })
     } catch { /* toasted */ } finally { setSaving(false) }
   }
 
@@ -149,8 +157,8 @@ export function CategoryFormPanel({ mode, categoryId, categories, initial, onSav
           {isEdit && form.category_slug && <p className="text-xs text-zinc-500 mt-0.5 font-mono truncate">{form.category_slug}</p>}
         </div>
         {isEdit && (
-          <button type="button" onClick={onRequestDelete}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+          <button type="button" onClick={onRequestDelete} disabled={saving}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
             title="Delete category">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>

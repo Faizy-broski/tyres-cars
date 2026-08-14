@@ -61,7 +61,7 @@ function buildSizeVariants(raw: string): string[] {
   return [...variants].filter(Boolean)
 }
 
-async function bustInventoryCache() {
+export async function bustInventoryCache() {
   inventoryCache.clear()
   await redis?.incr(INVENTORY_VERSION_KEY).catch(() => null)
 }
@@ -73,11 +73,12 @@ export async function getInventoryMappings({
   status     = 'all' as InventoryStatusFilter,
   q          = '',
 }) {
-  const version  = (await redis?.get<number>(INVENTORY_VERSION_KEY)) ?? 0
+  // A Redis read failure here must degrade to "treat as cache miss, hit the DB" — never a 500.
+  const version  = (await redis?.get<number>(INVENTORY_VERSION_KEY).catch(() => null)) ?? 0
   const cacheKey = `inv:v${version}:${page}:${limit}:${supplierId}:${status}:${q}`
   const localHit = inventoryCache.get(cacheKey)
   if (localHit && localHit.exp > Date.now()) return localHit.data as { data: InventoryProductRow[]; total: number }
-  const remoteHit = await redis?.get<{ data: InventoryProductRow[]; total: number }>(cacheKey)
+  const remoteHit = await redis?.get<{ data: InventoryProductRow[]; total: number }>(cacheKey).catch(() => null)
   if (remoteHit) return remoteHit
 
   const offset = (page - 1) * limit

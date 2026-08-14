@@ -39,7 +39,7 @@ export default function WarehousesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Warehouse | null>(null)
   const [deleting, setDeleting]         = useState(false)
 
-  const { data: warehouses = [], isPending: loading } = useAdminWarehouses(showInactive)
+  const { data: warehouses = [], isPending: loading, refetch } = useAdminWarehouses(showInactive)
 
   function selectWarehouse(w: Warehouse) {
     setSelectedId(w.warehouse_id)
@@ -51,8 +51,30 @@ export default function WarehousesPage() {
     setSelectedForm(null)
   }
 
-  function handleSaved() {
-    queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })
+  async function handleSaved(saved: { warehouseId: string; form: WarehouseFormState }) {
+    const existing = warehouses.find(w => w.warehouse_id === saved.warehouseId)
+
+    if (existing) {
+      // Edit of an already-visible row: we already know exactly what changed — splice it into the
+      // cached list immediately instead of waiting on a second round-trip (GET) just to re-learn it.
+      const merged: Warehouse = { ...existing, ...saved.form }
+      queryClient.setQueryData<Warehouse[]>(adminKeys.warehouseList(showInactive), old => {
+        if (!old) return old
+        // If it just became inactive and this view only shows active ones, drop it from view instead.
+        if (!showInactive && !merged.is_active) return old.filter(w => w.warehouse_id !== saved.warehouseId)
+        return old.map(w => w.warehouse_id === saved.warehouseId ? merged : w)
+      })
+      selectWarehouse(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => refetch(), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable.
+      const { data: fresh } = await refetch()
+      const found = fresh?.find(w => w.warehouse_id === saved.warehouseId)
+      if (found) selectWarehouse(found)
+    }
   }
 
   async function patchWarehouseField(warehouseId: string, body: Record<string, boolean>) {
@@ -75,7 +97,10 @@ export default function WarehousesPage() {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${tok}` },
       })
-      if (!res.ok) throw new Error('Delete failed')
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(b.error || 'Delete failed')
+      }
       toastSuccess('Warehouse deleted')
       setDeleteTarget(null)
       queryClient.invalidateQueries({ queryKey: adminKeys.warehouseList(showInactive) })

@@ -35,6 +35,26 @@ export const EMPTY_PROMOTION_FORM: PromotionFormState = {
   show_on_homepage: true, is_active: true, image_url: '',
 }
 
+/** The exact fields submitted on save, already coerced to the same types PromotionRow uses
+ *  (numbers, not form strings) — lets the caller splice a save straight into the list instantly. */
+export type PromotionSavedPatch = {
+  title:             string
+  brand_name:        string | null
+  description:       string | null
+  cta_url:           string | null
+  discount_type:     PromotionFormState['discount_type']
+  discount_value:    number
+  start_date:        string
+  end_date:          string
+  applies_to:        string
+  target_id:         string | null
+  minimum_qty:       number
+  display_order:     number
+  show_on_homepage:  boolean
+  is_active:         boolean
+  image_url:         string | null
+}
+
 export function promotionToForm(p: PromotionRow): PromotionFormState {
   return {
     title:             p.title ?? '',
@@ -65,7 +85,9 @@ async function getToken(): Promise<string> {
 
 async function uploadImage(file: File, promotionId: string): Promise<string> {
   const ext    = file.name.split('.').pop() ?? 'jpg'
-  const path   = `deals/${promotionId}/hero.${ext}`
+  // Unique filename per upload (not just per promotion) so replacing an image gets a fresh URL —
+  // a deterministic path here would let browser/CDN caches keep serving the old image after "update".
+  const path   = `deals/${promotionId}/hero-${Date.now()}.${ext}`
   const client = createClient()
 
   const { error } = await client.storage
@@ -82,7 +104,10 @@ interface Props {
   mode:          'create' | 'edit'
   promotionId?:  string
   initial:       PromotionFormState
-  onSaved:       (result: { promotionId: string }) => void
+  // Passes back the exact fields that were submitted (already number-coerced, matching PromotionRow),
+  // so the caller can splice the known-good values straight into the list instantly instead of
+  // waiting on a second network round-trip.
+  onSaved:       (result: { promotionId: string; patch: PromotionSavedPatch }) => void
   onRequestDelete: () => void
 }
 
@@ -98,6 +123,18 @@ export function PromotionFormPanel({ mode, promotionId, initial, onSaved, onRequ
   const [metaLoaded, setMetaLoaded] = useState(false)
 
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
+  // an edit, the panel doesn't remount (its `key` is unchanged since the selected id didn't change),
+  // so without this the form would keep showing pre-save values instead of the canonical saved data.
+  useEffect(() => {
+    setValues(initial)
+    setImageFile(null) // already uploaded as part of whatever save just produced this fresh `initial`
+    setPreview(prev => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return initial.image_url ?? ''
+    })
+  }, [initial])
 
   useEffect(() => {
     let cancelled = false
@@ -131,11 +168,15 @@ export function PromotionFormPanel({ mode, promotionId, initial, onSaved, onRequ
     if (!file) return
     if (file.size > 5 * 1024 * 1024) { toastError('Image must be under 5 MB'); return }
     setImageFile(file)
-    setPreview(URL.createObjectURL(file))
+    setPreview(prev => {
+      if (prev.startsWith('blob:')) URL.revokeObjectURL(prev)
+      return URL.createObjectURL(file)
+    })
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (saving) return
     if (Number(values.discount_value) <= 0) { toastError('Discount value must be greater than 0'); return }
     if (values.end_date < values.start_date) { toastError('End date must be on or after start date'); return }
 
@@ -174,13 +215,22 @@ export function PromotionFormPanel({ mode, promotionId, initial, onSaved, onRequ
         if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? `Update failed (${res.status})`)
       }
 
+      // The promotion record is already saved at this point — an image upload failure must never
+      // look like the whole save failed (that invites a duplicate on retry) or leave the saved
+      // record un-selected/un-refreshed in the list.
+      let finalImageUrl = body.image_url
       if (imageFile && pid) {
-        const url      = await uploadImage(imageFile, pid)
-        const patchRes = await fetch(`${API}/api/admin/promotions/${pid}`, { method: 'PATCH', headers, body: JSON.stringify({ image_url: url }) })
-        if (!patchRes.ok) toastError('Promotion saved but image URL could not be updated')
+        try {
+          const url      = await uploadImage(imageFile, pid)
+          const patchRes = await fetch(`${API}/api/admin/promotions/${pid}`, { method: 'PATCH', headers, body: JSON.stringify({ image_url: url }) })
+          if (!patchRes.ok) toastError('Promotion saved but image URL could not be updated')
+          else finalImageUrl = url
+        } catch (imgErr) {
+          toastError(imgErr instanceof Error ? `Promotion saved, but image upload failed: ${imgErr.message}` : 'Promotion saved, but image upload failed')
+        }
       }
 
-      if (pid) onSaved({ promotionId: pid })
+      if (pid) onSaved({ promotionId: pid, patch: { ...body, image_url: finalImageUrl } })
     } catch (err) {
       toastError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -228,16 +278,16 @@ export function PromotionFormPanel({ mode, promotionId, initial, onSaved, onRequ
     if (scope === 'product') {
       return (
         <div>
-          <label className={lbl}>Product ID (UUID)</label>
-          <input className={inp} value={values.target_id} onChange={e => set('target_id', e.target.value)} placeholder="Paste the product UUID" />
+          <label className={lbl}>Product ID (UUID) <Req /></label>
+          <input required className={inp} value={values.target_id} onChange={e => set('target_id', e.target.value)} placeholder="Paste the product UUID" />
         </div>
       )
     }
     if (scope === 'pattern') {
       return (
         <div>
-          <label className={lbl}>Pattern ID (UUID)</label>
-          <input className={inp} value={values.target_id} onChange={e => set('target_id', e.target.value)} placeholder="Paste the pattern UUID" />
+          <label className={lbl}>Pattern ID (UUID) <Req /></label>
+          <input required className={inp} value={values.target_id} onChange={e => set('target_id', e.target.value)} placeholder="Paste the pattern UUID" />
         </div>
       )
     }
@@ -257,8 +307,8 @@ export function PromotionFormPanel({ mode, promotionId, initial, onSaved, onRequ
       <div className="px-5 py-4 border-b border-zinc-200 bg-zinc-50/60 flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">{isEdit ? 'Edit Promotion' : 'Create Promotion'}</h2>
         {isEdit && (
-          <button type="button" onClick={onRequestDelete}
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 transition-colors"
+          <button type="button" onClick={onRequestDelete} disabled={saving}
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 transition-colors"
             title="Delete promotion">
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>

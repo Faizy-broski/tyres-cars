@@ -6,8 +6,9 @@ import { createClient } from '@/lib/supabase/client'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
 import { SplitView } from '@/components/admin/SplitView'
 import { TableBodySpinner } from '@/components/ui/table-loader'
-import { CustomerFormPanel, EMPTY_CUSTOMER_FORM, customerToForm, type CustomerFormState } from '@/components/admin/customers/CustomerFormPanel'
+import { CustomerFormPanel, EMPTY_CUSTOMER_FORM, customerToForm, formToCustomerPatch, type CustomerFormState } from '@/components/admin/customers/CustomerFormPanel'
 import { toastError, toastSuccess } from '@/lib/toast'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   useCustomerList, useCustomerStats,
   type CustomerStats, type CustomerListResponse,
@@ -98,6 +99,7 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const searchParams  = useSearchParams()
   const router        = useRouter()
   const pathname      = usePathname()
+  const queryClient   = useQueryClient()
 
   const search       = searchParams.get('search') ?? ''
   const page         = Number(searchParams.get('page') ?? 1)
@@ -148,8 +150,28 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
     setSelectedForm(null)
   }
 
-  function handleSaved() {
-    listQuery.refetch()
+  async function handleSaved(saved: { customerId: string; form: CustomerFormState }) {
+    const existing = customers.find(c => c.customer_id === saved.customerId)
+
+    if (existing) {
+      // Edit of an already-visible row: we already know exactly what changed — splice it into the
+      // cached list immediately instead of waiting on a second round-trip (GET) just to re-learn it.
+      const merged: CustomerListItem = { ...existing, ...formToCustomerPatch(saved.form) }
+      queryClient.setQueriesData<CustomerListResponse>({ queryKey: ['admin', 'customers', 'list'] }, old => {
+        if (!old?.customers) return old
+        return { ...old, customers: old.customers.map(c => c.customer_id === saved.customerId ? merged : c) }
+      })
+      selectCustomer(merged)
+      // Reconcile with server truth in the background — deliberately delayed, not fired immediately.
+      // An immediate refetch can win the race against the write it's meant to confirm and land a
+      // moment later with pre-save data, silently stomping the correct value we just painted.
+      setTimeout(() => listQuery.refetch(), 1500)
+    } else {
+      // Newly created record — no existing row to splice into, so a real refetch is unavoidable.
+      const { data: fresh } = await listQuery.refetch()
+      const found = fresh?.customers.find(c => c.customer_id === saved.customerId)
+      if (found) selectCustomer(found)
+    }
   }
 
   async function handleDelete() {
@@ -174,10 +196,11 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   }
 
   return (
-    <div className="space-y-5 p-4 sm:p-6">
-      <AdminBreadcrumb crumbs={[{ label: 'Customers' }]} />
+    <>
+      <div className="space-y-5 px-4 sm:px-6 pt-4 sm:pt-6">
+        <AdminBreadcrumb crumbs={[{ label: 'Customers' }]} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard label="Total Customer" value={stats.totalCustomers} sub="Active customers"
           icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" /></svg>}
         />
@@ -190,6 +213,7 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
         <KpiCard label="Total Revenue" value={fmtAUD(stats.totalRevenue)} sub="From all orders"
           icon={<svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>}
         />
+        </div>
       </div>
 
       <SplitView
@@ -382,6 +406,6 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
