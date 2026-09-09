@@ -70,7 +70,7 @@ export default function EditVariantPage() {
   const [saving, setSaving]   = useState(false)
 
   useEffect(() => {
-    document.title = 'Edit Variant | Tyre Vault'
+    document.title = 'Edit Variant | Tyres & Car Valeting'
   }, [])
 
   useEffect(() => {

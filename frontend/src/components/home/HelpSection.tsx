@@ -10,7 +10,7 @@ const bullets = [
   "Competitive Market Prices",
   "Expert Vehicle Matching",
   "Secure Online Shopping",
-  "Fast & Reliable Delivery",
+  "Professional Car Valeting",
   "Trusted By Thousands",
 ];
 

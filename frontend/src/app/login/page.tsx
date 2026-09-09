@@ -59,14 +59,14 @@ function LoginForm() {
     >
       <img
         src="/logo_dark.svg"
-        alt="Tyre Vault"
+        alt="Tyres & Car Valeting"
         className="h-14 w-auto"
       />
     </Link>
 
         <div className="mb-6">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            Sign in to Tyre Vault
+            Sign in to Tyres & Car Valeting
           </h1>
         </div>
 

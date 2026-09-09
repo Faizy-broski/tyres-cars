@@ -2,7 +2,7 @@
 import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
-const brands = ["Michelin", "Bridgestone", "Goodyear", "Pirelli", "Continental", "Dunlop"];
+const brands = ["Michelin", "Bridgestone", "Continental", "Goodyear", "Pirelli", "Hankook"];
 
 export default function TrustedBrandsSection() {
   return (

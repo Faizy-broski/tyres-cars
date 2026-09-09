@@ -57,7 +57,7 @@ export default function UpdatePasswordPage() {
       <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-sm ring-1 ring-black/5">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">Set your password</h1>
-          <p className="mt-1 text-sm text-zinc-500">Create a password to activate your Tyre Vault account.</p>
+          <p className="mt-1 text-sm text-zinc-500">Create a password to activate your Tyres & Car Valeting account.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

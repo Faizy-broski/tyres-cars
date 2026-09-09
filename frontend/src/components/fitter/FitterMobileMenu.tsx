@@ -41,7 +41,7 @@ export default function FitterMobileMenu() {
       >
         <div className="flex items-center justify-between px-4 border-b border-zinc-100 shrink-0">
           <Link href="/fitter/dashboard" onClick={() => setOpen(false)}>
-            <Image src="/logo.svg" width={160} height={160} alt="Logo" />
+            <Image src="/logo.svg" width={110} height={94} alt="Logo" className="h-10 w-auto" />
           </Link>
           <Button
             variant="ghost"

@@ -71,7 +71,7 @@ function RegisterForm() {
           href="/"
           className="mb-6 flex items-center justify-center transition-opacity hover:opacity-80"
         >
-          <img src="/logo_dark.svg" alt="Tyre Vault" className="h-14 w-auto" />
+          <img src="/logo_dark.svg" alt="Tyres & Car Valeting" className="h-14 w-auto" />
         </Link>
 
         <div className="mb-6">

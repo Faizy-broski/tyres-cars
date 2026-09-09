@@ -9,7 +9,7 @@ export default function NewSupplierPage() {
   const [ready, setReady]     = useState(false)
 
   useEffect(() => {
-    document.title = 'Add Supplier | Tyre Vault'
+    document.title = 'Add Supplier | Tyres & Car Valeting'
     createClient().auth.getSession().then(({ data: { session } }) => {
       setToken(session?.access_token ?? '')
       setReady(true)

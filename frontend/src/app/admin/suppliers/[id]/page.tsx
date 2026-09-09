@@ -18,7 +18,7 @@ export default function AdminSupplierDetailPage() {
   const [loading, setLoading]   = useState(true)
 
   useEffect(() => {
-    document.title = supplier ? `${supplier.supplier_name} | Tyre Vault` : 'Supplier | Tyre Vault'
+    document.title = supplier ? `${supplier.supplier_name} | Tyres & Car Valeting` : 'Supplier | Tyres & Car Valeting'
   }, [supplier])
 
   useEffect(() => {

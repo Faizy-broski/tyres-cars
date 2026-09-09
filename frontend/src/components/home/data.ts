@@ -50,13 +50,13 @@ export const steps = [
 export const contactItems = [
   { icon: Phone, title: "Call", value: "886-540-0167" },
   { icon: MessageCircle, title: "Chat", value: "Here & Now" },
-  { icon: Mail, title: "Email", value: "info@Tyrevault.com" },
+  { icon: Mail, title: "Email", value: "info@tyrevault.com.au" },
 ];
 
 export const faqs = [
   { question: "Are the tires for sale new or used?", answer: "Our selection is composed of new tires mostly, however, retreaded and take-off tires can also be found on our website. Retreaded and Take-off tires are advertised as such, so there can be no confusion during shopping." },
   { question: "Can Gift Cards be combined with available Coupon Codes?", answer: "Yes, gift cards can be combined with active coupon codes unless otherwise stated." },
-  { question: "Does the Priority Tire Gift Card have an expiration date?", answer: "No, our gift cards do not expire and can be used anytime." },
+  { question: "Does the Tyres & Car Valeting Gift Card have an expiration date?", answer: "No, our gift cards do not expire and can be used anytime." },
   { question: "Do you provide a warranty on your tires?", answer: "Yes, manufacturer warranty is available on eligible tire purchases." },
   { question: "Do I need to register my tires?", answer: "We recommend registering your tires for safety recalls and warranty coverage." },
 ];
@@ -107,9 +107,31 @@ export const staticFooterSections = [
 ];
 
 export const footerLinks = [
-  { title: "Company", links: ["About Us", "Blog", "Warehouse Locations", "Shipping Information"] },
-  { title: "Customer Support", links: ["Help Center", "Track My Order", "Return Policy", "Privacy Policy"] },
-  { title: "Programs", links: ["Membership Benefits", "Become a Dealer", "Affiliate Program", "Installer Program"] },
+  {
+    title: "Company", links: [
+      { label: "About Us", href: "/about" },
+      { label: "Services", href: "/services" },
+      { label: "Blog", href: "#" },
+      { label: "Warehouse Locations", href: "#" },
+    ],
+  },
+  {
+    title: "Customer Support", links: [
+      { label: "Contact Us", href: "/contact" },
+      { label: "Help Center", href: "#" },
+      { label: "Track My Order", href: "/track-order" },
+      { label: "Return Policy", href: "#" },
+      { label: "Privacy Policy", href: "#" },
+    ],
+  },
+  {
+    title: "Programs", links: [
+      { label: "Membership Benefits", href: "#" },
+      { label: "Become a Dealer", href: "#" },
+      { label: "Affiliate Program", href: "#" },
+      { label: "Installer Program", href: "#" },
+    ],
+  },
 ];
 
 export const TYRES_PER_PAGE = 8;

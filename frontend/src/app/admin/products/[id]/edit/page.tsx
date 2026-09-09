@@ -39,7 +39,7 @@ export default function EditProductPage() {
   const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { document.title = 'Edit Product | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Edit Product | Tyres & Car Valeting' }, [])
 
   useEffect(() => {
     if (!id) return

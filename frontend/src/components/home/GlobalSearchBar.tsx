@@ -128,7 +128,7 @@ export default function GlobalSearchBar({ fullWidth, autoFocus }: Props = {}) {
         placeholder="Search tyres, brand or SKU..."
         autoComplete="off"
         autoFocus={autoFocus}
-        className={`h-10 rounded-full border border-white/15 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-primary transition-all ${fullWidth ? 'w-full' : 'w-64'}`}
+        className={`h-10 rounded-full border border-white/15 bg-white/5 pl-11 pr-4 text-sm text-white placeholder:text-zinc-500 outline-none focus:ring-1 focus:ring-primary transition-all ${fullWidth ? 'w-full' : 'w-48 2xl:w-64'}`}
       />
 
       {open && (results.length > 0 || loading) && (

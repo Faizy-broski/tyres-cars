@@ -126,10 +126,10 @@ export default function FooterSection({ topSections }: Props) {
         >
           <motion.div variants={fadeUp}>
             <div className="flex items-center gap-3">
-              <Image src="/logo.svg" width={200} height={60} alt="Tyre Vault logo" />
+              <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting logo" className="h-16 w-auto" />
             </div>
             <p className="mt-6 max-w-[340px] text-base leading-relaxed text-zinc-300">
-              Premium tyres at unbeatable prices. Trusted by thousands of drivers worldwide.
+              Premium tyres, expert fitting, and professional car valeting — trusted by thousands of drivers.
             </p>
             <motion.div className="mt-8 flex items-center gap-4" initial="hidden" whileInView="visible" viewport={viewport} variants={stagger}>
               {socialLinks.map((social) => (
@@ -153,9 +153,9 @@ export default function FooterSection({ topSections }: Props) {
               <h3 className="mb-6 text-xl font-bold text-white">{section.title}</h3>
               <ul className="space-y-4">
                 {section.links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="inline-block text-base text-zinc-300 transition-all duration-200 hover:translate-x-1 hover:text-white">
-                      {link}
+                  <li key={link.label}>
+                    <Link href={link.href} className="inline-block text-base text-zinc-300 transition-all duration-200 hover:translate-x-1 hover:text-white">
+                      {link.label}
                     </Link>
                   </li>
                 ))}

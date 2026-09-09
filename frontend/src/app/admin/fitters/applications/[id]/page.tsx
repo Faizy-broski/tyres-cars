@@ -18,7 +18,7 @@ export default function ApplicationDetailPage() {
 
   useEffect(() => {
     const name = application?.full_name as string | undefined
-    document.title = name ? `${name} — Application | Tyre Vault` : 'Application | Tyre Vault'
+    document.title = name ? `${name} — Application | Tyres & Car Valeting` : 'Application | Tyres & Car Valeting'
   }, [application])
 
   useEffect(() => {

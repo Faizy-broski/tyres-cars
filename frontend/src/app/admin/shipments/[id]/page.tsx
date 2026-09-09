@@ -80,7 +80,7 @@ export default function ShipmentDetailPage() {
 
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    document.title = shipment ? `${shipment.container_number ?? 'Shipment'} | Tyre Vault` : 'Shipment | Tyre Vault'
+    document.title = shipment ? `${shipment.container_number ?? 'Shipment'} | Tyres & Car Valeting` : 'Shipment | Tyres & Car Valeting'
   }, [shipment])
 
   async function handleStatusChange(newStatus: ShipmentStatus) {

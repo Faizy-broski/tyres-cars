@@ -57,7 +57,7 @@ export default function EditCategoryPage() {
   const [loading, setLoading]       = useState(true)
   const imgRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { document.title = 'Edit Category | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Edit Category | Tyres & Car Valeting' }, [])
 
   useEffect(() => {
     async function load() {

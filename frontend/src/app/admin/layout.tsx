@@ -5,7 +5,7 @@ import AdminShell from "@/components/admin/AdminShell";
 import type { ProfileRow } from "@/types/admin.types";
 
 export const metadata: Metadata = {
-  title: "Admin | Tyre Vault",
+  title: "Admin | Tyres & Car Valeting",
 };
 
 export default async function AdminLayout({

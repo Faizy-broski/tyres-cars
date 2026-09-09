@@ -36,7 +36,7 @@ export default function EditSupplierPage() {
         const data: Supplier = await res.json()
         if (!cancelled) {
           setSupplier(data)
-          document.title = `Edit ${data.supplier_name} | Tyre Vault`
+          document.title = `Edit ${data.supplier_name} | Tyres & Car Valeting`
         }
       } catch (err) {
         if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load supplier')

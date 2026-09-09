@@ -55,7 +55,7 @@ export default function CustomerDetailPage() {
   useEffect(() => {
     const c = state?.customer
     const name = c ? ([c.first_name, c.last_name].filter(Boolean).join(' ') || c.email) : null
-    document.title = name ? `${name} | Tyre Vault` : 'Customer | Tyre Vault'
+    document.title = name ? `${name} | Tyres & Car Valeting` : 'Customer | Tyres & Car Valeting'
   }, [state])
 
   useEffect(() => {

@@ -10,7 +10,7 @@ export default function StorefrontFooter() {
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                 <div className="w-2.5 h-2.5 rounded-full border-2 border-zinc-800" />
               </div>
-              <span className="font-bold text-zinc-900 text-sm">TYRE VAULT</span>
+              <span className="font-bold text-zinc-900 text-sm">TYRES & CAR VALETING</span>
             </div>
             <p className="text-xs text-zinc-500">Premium tyres and autoparts — shop, compare, and book fitting online.</p>
           </div>
@@ -25,7 +25,7 @@ export default function StorefrontFooter() {
             </Link>
           </nav>
         </div>
-        <p className="mt-8 text-xs text-zinc-400">© {new Date().getFullYear()} Tyre Vault. All rights reserved.</p>
+        <p className="mt-8 text-xs text-zinc-400">© {new Date().getFullYear()} Tyres & Car Valeting. All rights reserved.</p>
       </div>
     </footer>
   )

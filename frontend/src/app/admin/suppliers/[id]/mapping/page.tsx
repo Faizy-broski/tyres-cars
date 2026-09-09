@@ -44,8 +44,8 @@ export default function MappingPage() {
 
   useEffect(() => {
     document.title = supplier
-      ? `${supplier.supplier_name} — Mapping | Tyre Vault`
-      : 'Mapping | Tyre Vault'
+      ? `${supplier.supplier_name} — Mapping | Tyres & Car Valeting`
+      : 'Mapping | Tyres & Car Valeting'
   }, [supplier])
 
   if (loading) {

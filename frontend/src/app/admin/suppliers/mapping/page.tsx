@@ -16,7 +16,7 @@ export default function SupplierMappingPage() {
   const [loading, setLoading]             = useState(true)
 
   useEffect(() => {
-    document.title = 'Mapping Interface | Tyre Vault'
+    document.title = 'Mapping Interface | Tyres & Car Valeting'
   }, [])
 
   useEffect(() => {

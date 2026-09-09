@@ -427,8 +427,8 @@ export default function HeroSection() {
               </div>
             </div>
             <p className="mt-6 max-w-lg text-sm leading-relaxed text-zinc-300 sm:text-base md:text-lg">
-              Search by size, vehicle, or brand and get the best deals instantly
-              — from the world&apos;s most trusted tyre makers.
+              Premium budget and part-worn tyre fitting plus professional car valeting
+              — search by size or vehicle and get the best deals instantly.
             </p>
           </div>
 

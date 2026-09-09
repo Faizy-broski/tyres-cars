@@ -45,7 +45,7 @@ export default function CategoriesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  useEffect(() => { document.title = 'Categories | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Categories | Tyres & Car Valeting' }, [])
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: adminKeys.productCategories() })
 

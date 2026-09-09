@@ -56,7 +56,7 @@ export default function ShippingQuotesPage() {
   const [methods, setMethods]       = useState<AdminShippingMethod[]>([])
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
 
-  useEffect(() => { document.title = 'Shipping Quotes | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Shipping Quotes | Tyres & Car Valeting' }, [])
 
   // Load supporting data for the form
   useEffect(() => {

@@ -79,7 +79,7 @@ export default function CategoriesPage() {
   const [imageUploading, setImageUploading] = useState(false)
   const imageRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { document.title = 'Categories | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Categories | Tyres & Car Valeting' }, [])
 
   async function fetchCategories() {
     setLoading(true)

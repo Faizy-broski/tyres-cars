@@ -30,8 +30,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Tyre Vault',
-    template: '%s | Tyre Vault',
+    default: 'Tyres & Car Valeting',
+    template: '%s | Tyres & Car Valeting',
   },
   description: 'Premium tyres and autoparts — shop, compare, and book fitting online.',
 }

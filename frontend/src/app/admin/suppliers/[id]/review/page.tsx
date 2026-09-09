@@ -20,7 +20,7 @@ export default function MappingReviewPage() {
   const [loading, setLoading]     = useState(true)
 
   useEffect(() => {
-    document.title = supplier ? `${supplier.supplier_name} — Mapping Review | Tyre Vault` : 'Mapping Review | Tyre Vault'
+    document.title = supplier ? `${supplier.supplier_name} — Mapping Review | Tyres & Car Valeting` : 'Mapping Review | Tyres & Car Valeting'
   }, [supplier])
 
   useEffect(() => {

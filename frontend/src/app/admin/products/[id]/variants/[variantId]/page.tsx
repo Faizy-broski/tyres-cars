@@ -28,7 +28,7 @@ export default function VariantDetailPage() {
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
   useEffect(() => {
-    document.title = sku ? `${sku.tyre_size_display} | Tyre Vault` : 'Variant | Tyre Vault'
+    document.title = sku ? `${sku.tyre_size_display} | Tyres & Car Valeting` : 'Variant | Tyres & Car Valeting'
   }, [sku])
 
   useEffect(() => {

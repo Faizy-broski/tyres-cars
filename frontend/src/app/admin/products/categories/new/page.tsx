@@ -59,7 +59,7 @@ export default function NewCategoryPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const imgRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => { document.title = 'New Category | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'New Category | Tyres & Car Valeting' }, [])
 
   useEffect(() => {
     async function load() {

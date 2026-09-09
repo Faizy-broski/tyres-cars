@@ -47,7 +47,7 @@ export default function CustomerGroupDetailPage() {
   const addSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    document.title = group ? `${group.group_name} | Tyre Vault` : 'Customer Group | Tyre Vault'
+    document.title = group ? `${group.group_name} | Tyres & Car Valeting` : 'Customer Group | Tyres & Car Valeting'
   }, [group])
 
   useEffect(() => {

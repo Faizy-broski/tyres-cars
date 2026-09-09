@@ -33,17 +33,17 @@ export default function TestimonialsSection() {
             transition={{ duration: 0.65, ease: [0.25, 0.46, 0.45, 0.94] }}
           >
             <h2 className="font-oswald text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
-              What Our Customers Say
+              Trusted By Drivers
             </h2>
             <div className="mt-6 flex items-end gap-3">
-              <span className="font-oswald text-7xl font-black leading-none text-white lg:text-8xl">4.8</span>
+              <span className="font-oswald text-7xl font-black leading-none text-white lg:text-8xl">4.7</span>
               <div className="mb-3 flex gap-1">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star key={i} className="h-5 w-5 fill-white text-white" />
                 ))}
               </div>
             </div>
-            <p className="mt-2 text-sm text-white/80">Overall customer rating of 4.8 out of 5 stars</p>
+            <p className="mt-2 text-sm text-white/80">Thousands of drivers rely on us for professional tyre fitting and car valeting</p>
           </motion.div>
 
           {/* Reviews */}

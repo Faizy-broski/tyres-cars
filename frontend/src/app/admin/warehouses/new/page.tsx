@@ -75,7 +75,7 @@ export default function NewWarehousePage() {
   const [form, setForm]   = useState<FormState>(EMPTY)
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { document.title = 'New Warehouse | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'New Warehouse | Tyres & Car Valeting' }, [])
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => ({ ...f, [key]: value }))

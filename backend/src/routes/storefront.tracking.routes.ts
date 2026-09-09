@@ -29,6 +29,14 @@ const inquiryLimiter = rateLimit({
   message:        { error: 'Too many requests — please wait a moment and try again.' },
 })
 
+const contactLimiter = rateLimit({
+  windowMs:       60_000,
+  max:            5,
+  standardHeaders: true,
+  legacyHeaders:  false,
+  message:        { error: 'Too many requests — please wait a moment and try again.' },
+})
+
 router.post('/track', trackingLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { order_number, email } = req.body as { order_number?: string; email?: string }
@@ -109,6 +117,29 @@ router.post('/product-inquiry', inquiryLimiter, async (req: Request, res: Respon
       product_name,
       tyre_size_display,
       product_url,
+    }).catch(() => {})
+
+    res.json({ ok: true })
+  } catch (err) { next(err) }
+})
+
+router.post('/contact', contactLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { name, email, phone, subject, message } = req.body as {
+      name?: string; email?: string; phone?: string; subject?: string; message?: string
+    }
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'name, email and message are required' })
+    }
+
+    notificationQueue?.add('contact_request', {
+      type:           'contact_request',
+      customer_name:  name,
+      customer_email: email,
+      customer_phone: phone,
+      subject,
+      message,
     }).catch(() => {})
 
     res.json({ ok: true })

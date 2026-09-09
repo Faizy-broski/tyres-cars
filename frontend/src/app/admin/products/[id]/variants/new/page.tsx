@@ -55,7 +55,7 @@ export default function NewVariantPage() {
 
   const [saving, setSaving] = useState(false)
 
-  useEffect(() => { document.title = 'New Variant | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'New Variant | Tyres & Car Valeting' }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

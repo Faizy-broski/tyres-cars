@@ -18,7 +18,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    document.title = order ? `Order ${order.order_number} | Tyre Vault` : 'Order | Tyre Vault'
+    document.title = order ? `Order ${order.order_number} | Tyres & Car Valeting` : 'Order | Tyres & Car Valeting'
   }, [order])
 
   useEffect(() => {

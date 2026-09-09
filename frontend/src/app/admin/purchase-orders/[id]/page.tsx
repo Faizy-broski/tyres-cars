@@ -134,7 +134,7 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => { fetchPo() }, [fetchPo])
   useEffect(() => { fetchShipments() }, [fetchShipments])
   useEffect(() => {
-    document.title = po ? `${po.po_number} | Tyre Vault` : 'Purchase Order | Tyre Vault'
+    document.title = po ? `${po.po_number} | Tyres & Car Valeting` : 'Purchase Order | Tyres & Car Valeting'
   }, [po])
 
   // ── Status update ──────────────────────────────────────────────────────────

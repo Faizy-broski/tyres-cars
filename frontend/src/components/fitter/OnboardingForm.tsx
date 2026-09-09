@@ -292,7 +292,7 @@ function InfoPanel() {
       Icon: BadgeDollarSign,
       label: "Pricing Structure",
       content:
-        "You set your own labour rates per service. Tyre Vault charges a small platform fee on completed jobs. No monthly subscription — you only pay when you earn.",
+        "You set your own labour rates per service. Tyres & Car Valeting charges a small platform fee on completed jobs. No monthly subscription — you only pay when you earn.",
     },
     {
       id: "requirements",
@@ -1024,7 +1024,7 @@ function SuccessScreen() {
         Application Submitted!
       </h2>
       <p className="text-sm text-zinc-500 max-w-sm mx-auto">
-        Thank you for applying to join the Tyre Vault Fitter Network. Our team
+        Thank you for applying to join the Tyres & Car Valeting Fitter Network. Our team
         will review your application and reach out within 2 business days.
       </p>
     </div>
@@ -1122,7 +1122,7 @@ export default function OnboardingForm() {
 
         <main className="flex-1 px-4 sm:px-6 lg:px-10 py-8 lg:py-12">
           <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900 mb-6 lg:mb-8">
-            Tyre Vault Onboarding
+            Tyres & Car Valeting Onboarding
           </h1>
 
           <div className="flex flex-col lg:grid lg:grid-cols-[340px_1fr] gap-6">

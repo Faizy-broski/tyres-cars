@@ -35,6 +35,7 @@ export type NotificationJobData =
   | { type: 'supplier_import_done';  admin_email: string; supplier_id: string; results: Record<string, number> }
   | { type: 'price_match_request';   customer_name: string; customer_email: string; customer_phone?: string; message: string; product_id: string; sku: string; product_name?: string; tyre_size_display?: string; price?: number; product_url?: string }
   | { type: 'product_inquiry_request'; customer_name: string; customer_email: string; customer_phone?: string; message?: string; product_id: string; sku: string; product_name?: string; tyre_size_display?: string; product_url?: string }
+  | { type: 'contact_request';        customer_name: string; customer_email: string; customer_phone?: string; subject?: string; message: string }
 
 // ── Nodemailer email sender ────────────────────────────────────
 async function sendEmail(to: string, subject: string, html: string) {
@@ -44,7 +45,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     return
   }
   await transporter.sendMail({
-    from:    process.env.EMAIL_FROM ?? '"TyreVault" <noreply@tyrevault.com.au>',
+    from:    process.env.EMAIL_FROM ?? '"Tyres & Car Valeting" <noreply@tyrevault.com.au>',
     to,
     subject,
     html,
@@ -115,6 +116,14 @@ function tplProductInquiryRequest(d: Extract<NotificationJobData, { type: 'produ
   </div>`
 }
 
+function tplContactRequest(d: Extract<NotificationJobData, { type: 'contact_request' }>): string {
+  return `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#18181b">
+    <h2>New Contact Message${d.subject ? `: ${d.subject}` : ''}</h2>
+    <p>From: <strong>${d.customer_name}</strong> — ${d.customer_email}${d.customer_phone ? ` — ${d.customer_phone}` : ''}</p>
+    <p style="white-space:pre-wrap">${d.message}</p>
+  </div>`
+}
+
 // ── Worker ─────────────────────────────────────────────────────
 export const notificationWorker = new Worker<NotificationJobData>(
   'notification',
@@ -155,6 +164,13 @@ export const notificationWorker = new Worker<NotificationJobData>(
           process.env.SUPPORT_EMAIL ?? 'support@tyrevault.com.au',
           `Product Inquiry — ${data.sku}`,
           tplProductInquiryRequest(data)
+        )
+        break
+      case 'contact_request':
+        await sendEmail(
+          process.env.SUPPORT_EMAIL ?? 'support@tyrevault.com.au',
+          data.subject ? `Contact Form: ${data.subject}` : 'New Contact Form Message',
+          tplContactRequest(data)
         )
         break
     }

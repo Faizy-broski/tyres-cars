@@ -164,7 +164,7 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose, colla
       {/* Mobile header: always the full logo + close button, regardless of the desktop collapse preference */}
       <div className="flex lg:hidden items-center justify-between border-b border-zinc-800 px-3 py-3">
         <Link href="/admin/dashboard" className="min-w-0">
-          <Image src="/logo.svg" width={120} height={37} alt="Tyre Vault" className="max-w-full h-auto" />
+          <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting" className="h-9 w-auto max-w-full" />
         </Link>
         <button
           type="button"
@@ -193,7 +193,7 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose, colla
         ) : (
           <>
             <Link href="/admin/dashboard" className="min-w-0">
-              <Image src="/logo.svg" width={120} height={37} alt="Tyre Vault" className="max-w-full h-auto" />
+              <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting" className="h-9 w-auto max-w-full" />
             </Link>
             {onToggleCollapse && (
               <button

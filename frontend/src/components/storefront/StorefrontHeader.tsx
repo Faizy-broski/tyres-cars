@@ -19,7 +19,7 @@ export default function StorefrontHeader() {
             <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
               <div className="w-3 h-3 rounded-full border-2 border-zinc-800" />
             </div>
-            <span className="font-bold text-zinc-900 text-sm tracking-wide">TYRE VAULT</span>
+            <span className="font-bold text-zinc-900 text-sm tracking-wide">TYRES & CAR VALETING</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-600">

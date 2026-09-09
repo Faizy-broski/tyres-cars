@@ -47,7 +47,7 @@ export default function FitmentCentreDetailPage() {
   const [loading, setLoading]                       = useState(true)
 
   useEffect(() => {
-    document.title = centre ? `${centre.business_name} | Tyre Vault` : 'Fitment Centre | Tyre Vault'
+    document.title = centre ? `${centre.business_name} | Tyres & Car Valeting` : 'Fitment Centre | Tyres & Car Valeting'
   }, [centre])
 
   useEffect(() => {

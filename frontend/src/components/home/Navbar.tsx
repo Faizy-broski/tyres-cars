@@ -13,8 +13,10 @@ import GlobalSearchBar from "./GlobalSearchBar";
 import MobileMenu from "./MobileMenu";
 
 const navLinks = [
-  
+  // { label: "Services", href: "/services" },
+  { label: "About Us", href: "/about" },
   { label: "Promotions", href: "/promotions" },
+  { label: "Contact", href: "/contact" },
   { label: "Track Order", href: "/track-order" },
 ];
 
@@ -70,15 +72,15 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
     >
       <div className="border-b border-white/10 bg-black/30 backdrop-blur-md">
         <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-10">
-          <div className="flex items-center gap-5 lg:gap-10">
+          <div className="flex items-center gap-5 xl:gap-8">
             <MobileMenu session={session} onSignOut={handleSignOut} onOpenAuth={openAuthModal} />
-            <nav className="hidden items-center gap-8 lg:flex">
+            <nav className="hidden items-center gap-6 xl:flex">
               {/* Shop Tyres — mega dropdown */}
               <div ref={tyresRef} className="relative">
                 <button
                   type="button"
                   onClick={() => setTyresOpen(o => !o)}
-                  className={`flex items-center gap-1.5 text-sm font-semibold uppercase tracking-wide transition-colors duration-200 ${tyresOpen ? 'text-primary' : 'text-white hover:text-primary'}`}
+                  className={`flex items-center gap-1.5 whitespace-nowrap text-sm font-semibold uppercase tracking-wide transition-colors duration-200 ${tyresOpen ? 'text-primary' : 'text-white hover:text-primary'}`}
                 >
                   Shop Tyres
                   <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-200 ${tyresOpen ? 'rotate-180 text-primary' : ''}`} />
@@ -90,7 +92,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 <Link
                   key={label}
                   href={href}
-                  className="text-sm font-semibold uppercase tracking-wide text-white transition-colors duration-200 hover:text-primary"
+                  className="whitespace-nowrap text-sm font-semibold uppercase tracking-wide text-white transition-colors duration-200 hover:text-primary"
                 >
                   {label}
                 </Link>
@@ -98,15 +100,15 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
             </nav>
           </div>
 
-          <Link href="/" className="absolute left-1/2 hidden -translate-x-1/2 lg:block">
-            <Image src="/logo.svg" width={180} height={45} alt="Tyre Vault" style={{ height: 'auto' }} />
+          <Link href="/" className="absolute left-1/2 hidden -translate-x-1/2 xl:block">
+            <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting" className="h-12 w-auto" />
           </Link>
-          <Link href="/" className="lg:hidden">
-            <Image src="/logo.svg" width={140} height={35} alt="Tyre Vault" style={{ height: 'auto' }} />
+          <Link href="/" className="xl:hidden">
+            <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting" className="h-10 w-auto" />
           </Link>
 
           <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-1 lg:flex">
+            <div className="hidden items-center gap-1 xl:flex">
               {/* Auth-aware user area */}
               {!mounted ? (
                 // Fixed-size placeholder prevents layout shift during hydration
@@ -153,7 +155,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 </div>
               ) : (
                 // Guest: Sign in + Register
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 whitespace-nowrap">
                   <button
                     type="button"
                     onClick={() => openAuthModal("login")}
@@ -186,15 +188,15 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 )}
               </button>
             </div>
-            <div className="relative hidden lg:block">
+            <div className="relative hidden xl:block">
               <GlobalSearchBar />
             </div>
-            {/* Mobile cart */}
+            {/* Mobile/tablet cart */}
             <button
               type="button"
               onClick={openCart}
               aria-label="Open cart"
-              className="relative flex items-center justify-center h-10 w-10 rounded-lg text-white hover:text-primary transition-colors lg:hidden"
+              className="relative flex items-center justify-center h-10 w-10 rounded-lg text-white hover:text-primary transition-colors xl:hidden"
             >
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && (
@@ -208,14 +210,14 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
               variant="ghost"
               aria-label="Search"
               onClick={() => setMobileSearchOpen(o => !o)}
-              className={`hover:bg-transparent hover:text-primary lg:hidden ${mobileSearchOpen ? "text-primary" : "text-white"}`}
+              className={`hover:bg-transparent hover:text-primary xl:hidden ${mobileSearchOpen ? "text-primary" : "text-white"}`}
             >
               <Search className="h-5 w-5" />
             </Button>
           </div>
         </div>
         {mobileSearchOpen && (
-          <div className="border-t border-white/10 px-4 py-3 lg:hidden">
+          <div className="border-t border-white/10 px-4 py-3 xl:hidden">
             <GlobalSearchBar fullWidth autoFocus />
           </div>
         )}

@@ -35,14 +35,14 @@ export default function ContactSection() {
             <div className="absolute inset-0 bg-black/45" />
             <div className="absolute inset-0 flex flex-col justify-between p-8 sm:p-10">
               <h2 className="max-w-[180px] font-oswald text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
-                Want To Schedule A Call
+                Want A Free Quote
               </h2>
               <button
                 type="button"
-                aria-label="Schedule a call for expert tyre help"
+                aria-label="Get a free quote for tyres or car valeting"
                 className="h-14 rounded-full bg-primary text-lg font-bold italic text-zinc-950 transition-all duration-300 hover:scale-[1.02] hover:bg-[#c89907]"
               >
-                Get Expert Help
+                Get A Quote
               </button>
             </div>
           </div>

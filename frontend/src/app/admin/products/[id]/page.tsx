@@ -66,7 +66,7 @@ export default function ProductDetailPage() {
   const onRefresh = useCallback(() => setRefreshKey(k => k + 1), [])
 
   useEffect(() => {
-    document.title = pattern ? `${pattern.pattern_name} | Tyre Vault` : 'Product | Tyre Vault'
+    document.title = pattern ? `${pattern.pattern_name} | Tyres & Car Valeting` : 'Product | Tyres & Car Valeting'
   }, [pattern])
 
   const t = searchParams.get('t')

@@ -17,7 +17,10 @@ const TYRE_CATEGORIES = [
 ]
 
 const navLinks = [
+  { label: 'Services', href: '/services' },
+  { label: 'About Us', href: '/about' },
   { label: 'Promotions', href: '/promotions' },
+  { label: 'Contact', href: '/contact' },
   { label: 'Track Order', href: '/track-order' },
 ]
 
@@ -52,7 +55,7 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 z-40 bg-black/50 transition-opacity duration-300 xl:hidden ${
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={close}
@@ -61,13 +64,13 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
 
       {/* Slide-in drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-[82%] max-w-xs flex-col bg-zinc-900 transform transition-transform duration-300 ease-in-out lg:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-[82%] max-w-xs flex-col bg-zinc-900 transform transition-transform duration-300 ease-in-out xl:hidden ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         <div className="flex h-16 items-center justify-between border-b border-white/10 px-4 shrink-0">
           <Link href="/" onClick={close}>
-            <Image src="/logo.svg" width={130} height={32} alt="Tyre Vault" style={{ height: 'auto' }} />
+            <Image src="/logo.svg" width={110} height={94} alt="Tyres & Car Valeting" className="h-9 w-auto" />
           </Link>
           <button
             type="button"
@@ -172,7 +175,7 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Open menu"
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-white hover:text-primary transition-colors lg:hidden"
+        className="flex h-10 w-10 items-center justify-center rounded-lg text-white hover:text-primary transition-colors xl:hidden"
       >
         <Menu className="h-5 w-5" />
       </button>

@@ -19,7 +19,7 @@ export default function NewProductPage() {
   const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading]     = useState(true)
 
-  useEffect(() => { document.title = 'New Product | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'New Product | Tyres & Car Valeting' }, [])
 
   useEffect(() => {
     let cancelled = false

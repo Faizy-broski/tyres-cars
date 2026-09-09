@@ -69,7 +69,7 @@ export default function EditWarehousePage() {
   const [saving, setSaving]   = useState(false)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { document.title = 'Edit Warehouse | Tyre Vault' }, [])
+  useEffect(() => { document.title = 'Edit Warehouse | Tyres & Car Valeting' }, [])
 
   useEffect(() => {
     async function load() {

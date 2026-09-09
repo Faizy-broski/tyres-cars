@@ -19,7 +19,7 @@ export default function ServicesSection() {
           <h2 className="font-oswald text-3xl font-black uppercase leading-tight tracking-tight text-white sm:text-4xl">
             Services That Keep You Moving
           </h2>
-          <p className="mt-4 text-base leading-relaxed text-white/75">Three important things to know about Tyre Vault.</p>
+          <p className="mt-4 text-base leading-relaxed text-white/75">Three important things to know about Tyres & Car Valeting.</p>
           <Button className="mt-6 h-12 rounded-full bg-primary px-8 font-oswald text-lg font-bold italic text-white transition-all duration-200 hover:bg-[#c89907] active:scale-[0.97]">
             Get Expert Help
           </Button>

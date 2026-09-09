@@ -430,7 +430,7 @@ export default function TyresListingClient({ initialResult, initialFacets, initi
         <div className="relative mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-10 pt-32 pb-10">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-              <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">Tyre Vault</p>
+              <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] mb-2">Tyres & Car Valeting</p>
               <h1 className="font-oswald text-4xl sm:text-5xl font-bold text-white uppercase tracking-wide leading-none">
                 Shop Tyres
               </h1>
