@@ -62,7 +62,7 @@ export default function BestSellingSection() {
             show_on_website,
             brands!inner ( brand_name, is_active, show_on_website )
           ),
-          product_prices ( price_type, price_inc_gst, customer_group_id )
+          product_prices ( price_type, price_inc_gst )
         `)
         .eq("status", "active")
         .eq("patterns.is_active", true)
@@ -79,7 +79,7 @@ export default function BestSellingSection() {
         const pattern = row.patterns as any;
         const brand   = pattern?.brands as any;
         const retail  = (row.product_prices ?? []).find(
-          (p: any) => p.price_type === "retail" && !p.customer_group_id
+          (p: any) => p.price_type === "retail"
         )?.price_inc_gst ?? null;
 
         return {

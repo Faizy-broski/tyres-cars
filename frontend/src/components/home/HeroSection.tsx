@@ -1,19 +1,17 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Clock3, CircleDot, User, Search, ChevronDown, Loader2 } from "lucide-react";
+import { Clock3, CircleDot, User, Search, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { stagger, slideRight } from "./motion-variants";
 import { SelectorDialog } from "./SelectorDialog";
-import { toastError, toastWarning } from "@/lib/toast";
 import {
-  POPULAR_MAKES,
   TYRE_WIDTHS,
   POPULAR_WIDTHS,
   PROFILES,
@@ -21,30 +19,14 @@ import {
   RIM_DIAMETERS,
   POPULAR_RIMS,
 } from "./hero-data";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-interface Variant {
-  vehicle_id: string;
-  variant: string | null;
-  series: string | null;
-  body_type: string | null;
-}
-
-function variantLabel(v: Variant): string {
-  return [v.variant, v.series, v.body_type].filter(Boolean).join(" · ") || "Standard";
-}
+import {
+  VEHICLE_MAKES,
+  VEHICLE_YEARS,
+  getModelsForMake,
+  getFitmentForVehicle,
+} from "./vehicle-data";
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
-
-const vehicleSchema = z.object({
-  make: z.string().min(1),
-  model: z.string().min(1),
-  year: z.string().min(1),
-  variant: z.string().min(1),
-});
 
 const tyreSizeSchema = z.object({
   width: z.string().min(1),
@@ -52,17 +34,17 @@ const tyreSizeSchema = z.object({
   rim: z.string().min(1),
 });
 
-type VehicleFormData = z.infer<typeof vehicleSchema>;
 type TyreSizeFormData = z.infer<typeof tyreSizeSchema>;
-type ActiveDialog =
-  | "make"
-  | "model"
-  | "year"
-  | "variant"
-  | "width"
-  | "profile"
-  | "rim"
-  | null;
+type ActiveDialog = "width" | "profile" | "rim" | "make" | "model" | "year" | null;
+type SearchTab = "size" | "vehicle";
+
+const vehicleSchema = z.object({
+  make: z.string().min(1),
+  model: z.string().min(1),
+  year: z.string().min(1),
+});
+
+type VehicleFormData = z.infer<typeof vehicleSchema>;
 
 // ─── Static ───────────────────────────────────────────────────────────────────
 
@@ -153,35 +135,10 @@ function TriggerField({
 
 export default function HeroSection() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"vehicle" | "size">("vehicle");
   const [openDialog, setOpenDialog] = useState<ActiveDialog>(null);
-  const [searching, setSearching] = useState(false);
-  const [loadingOptions, setLoadingOptions] = useState<Record<string, boolean>>({
-    make: false,
-    model: false,
-    year: false,
-    variant: false,
-  });
+  const [tab, setTab] = useState<SearchTab>("size");
 
-  // ── Dynamic vehicle data ───────────────────────────────────────────────────
-
-  const [makes, setMakes] = useState<string[]>([]);
-  const [models, setModels] = useState<string[]>([]);
-  const [years, setYears] = useState<string[]>([]);
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [variantId, setVariantId] = useState("");
-  // label → vehicle_id lookup built when variants load
-  const [variantLabelMap, setVariantLabelMap] = useState(
-    new Map<string, string>(),
-  );
-
-  // ── Forms ──────────────────────────────────────────────────────────────────
-
-  const vehicleForm = useForm<VehicleFormData>({
-    resolver: zodResolver(vehicleSchema),
-    defaultValues: { make: "", model: "", year: "", variant: "" },
-  });
-  const v = vehicleForm.watch();
+  // ── Form ───────────────────────────────────────────────────────────────────
 
   const sizeForm = useForm<TyreSizeFormData>({
     resolver: zodResolver(tyreSizeSchema),
@@ -189,132 +146,17 @@ export default function HeroSection() {
   });
   const s = sizeForm.watch();
 
-  // ── Vehicle data fetching ──────────────────────────────────────────────────
-
-  useEffect(() => {
-    setLoadingOptions((prev) => ({ ...prev, make: true }));
-    fetch(`${API}/api/vehicles/makes`)
-      .then((r) => r.json())
-      .then(setMakes)
-      .catch(() => {})
-      .finally(() => setLoadingOptions((prev) => ({ ...prev, make: false })));
-  }, []);
-
-  useEffect(() => {
-    if (!v.make) {
-      setModels([]);
-      return;
-    }
-    setLoadingOptions((prev) => ({ ...prev, model: true }));
-    fetch(`${API}/api/vehicles/models?make=${encodeURIComponent(v.make)}`)
-      .then((r) => r.json())
-      .then(setModels)
-      .catch(() => {})
-      .finally(() => setLoadingOptions((prev) => ({ ...prev, model: false })));
-  }, [v.make]);
-
-  useEffect(() => {
-    if (!v.make || !v.model) {
-      setYears([]);
-      return;
-    }
-    setLoadingOptions((prev) => ({ ...prev, year: true }));
-    fetch(
-      `${API}/api/vehicles/years?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}`,
-    )
-      .then((r) => r.json())
-      .then((data: number[]) => setYears(data.map(String)))
-      .catch(() => {})
-      .finally(() => setLoadingOptions((prev) => ({ ...prev, year: false })));
-  }, [v.make, v.model]);
-
-  useEffect(() => {
-    if (!v.make || !v.model || !v.year) {
-      setVariants([]);
-      setVariantLabelMap(new Map());
-      return;
-    }
-    setLoadingOptions((prev) => ({ ...prev, variant: true }));
-    fetch(
-      `${API}/api/vehicles/variants?make=${encodeURIComponent(v.make)}&model=${encodeURIComponent(v.model)}&year=${v.year}`,
-    )
-      .then((r) => r.json())
-      .then((data: Variant[]) => {
-        setVariants(data);
-        const map = new Map<string, string>();
-        for (const variant of data) map.set(variantLabel(variant), variant.vehicle_id);
-        setVariantLabelMap(map);
-      })
-      .catch(() => {})
-      .finally(() => setLoadingOptions((prev) => ({ ...prev, variant: false })));
-  }, [v.make, v.model, v.year]);
+  const vehicleForm = useForm<VehicleFormData>({
+    resolver: zodResolver(vehicleSchema),
+    defaultValues: { make: "", model: "", year: "" },
+  });
+  const v = vehicleForm.watch();
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
-  const variantDisplayLabels = variants.map(variantLabel);
-  const vehicleComplete = !!(v.make && v.model && v.year && v.variant);
   const sizeComplete = !!(s.width && s.profile && s.rim);
-  const canSearch = activeTab === "vehicle" ? vehicleComplete : sizeComplete;
-
-  // ── Tab switching ──────────────────────────────────────────────────────────
-
-  const handleTabSwitch = (tab: "vehicle" | "size") => {
-    if (tab === activeTab) return;
-    if (activeTab === "vehicle") vehicleForm.reset();
-    else sizeForm.reset();
-    setActiveTab(tab);
-    setOpenDialog(null);
-  };
-
-  // ── Vehicle handlers ───────────────────────────────────────────────────────
-
-  const handleMakeSelect = useCallback(
-    (value: string) => {
-      if (vehicleForm.getValues("make") !== value) {
-        vehicleForm.setValue("make", value);
-        vehicleForm.setValue("model", "");
-        vehicleForm.setValue("year", "");
-        vehicleForm.setValue("variant", "");
-        setVariantId("");
-      }
-      setOpenDialog("model");
-    },
-    [vehicleForm],
-  );
-
-  const handleModelSelect = useCallback(
-    (value: string) => {
-      if (vehicleForm.getValues("model") !== value) {
-        vehicleForm.setValue("model", value);
-        vehicleForm.setValue("year", "");
-        vehicleForm.setValue("variant", "");
-        setVariantId("");
-      }
-      setOpenDialog("year");
-    },
-    [vehicleForm],
-  );
-
-  const handleYearSelect = useCallback(
-    (value: string) => {
-      if (vehicleForm.getValues("year") !== value) {
-        vehicleForm.setValue("year", value);
-        vehicleForm.setValue("variant", "");
-        setVariantId("");
-      }
-      setOpenDialog("variant");
-    },
-    [vehicleForm],
-  );
-
-  const handleVariantSelect = useCallback(
-    (label: string) => {
-      vehicleForm.setValue("variant", label);
-      setVariantId(variantLabelMap.get(label) ?? "");
-      setOpenDialog(null);
-    },
-    [vehicleForm, variantLabelMap],
-  );
+  const vehicleComplete = !!(v.make && v.model && v.year);
+  const modelsForMake = v.make ? getModelsForMake(v.make) : [];
 
   // ── Tyre size handlers ─────────────────────────────────────────────────────
 
@@ -349,58 +191,47 @@ export default function HeroSection() {
     [sizeForm],
   );
 
+  // ── Vehicle handlers ───────────────────────────────────────────────────────
+
+  const handleMakeSelect = useCallback(
+    (value: string) => {
+      if (vehicleForm.getValues("make") !== value) {
+        vehicleForm.setValue("make", value);
+        vehicleForm.setValue("model", "");
+      }
+      setOpenDialog("model");
+    },
+    [vehicleForm],
+  );
+
+  const handleModelSelect = useCallback(
+    (value: string) => {
+      vehicleForm.setValue("model", value);
+      setOpenDialog("year");
+    },
+    [vehicleForm],
+  );
+
+  const handleYearSelect = useCallback(
+    (value: string) => {
+      vehicleForm.setValue("year", value);
+      setOpenDialog(null);
+    },
+    [vehicleForm],
+  );
+
   // ── Search submit ──────────────────────────────────────────────────────────
 
-  const handleSearch = async () => {
-    if (!canSearch || searching) return;
+  const handleSearch = () => {
+    if (!sizeComplete) return;
+    router.push(`/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim}`);
+  };
 
-    if (activeTab === "size") {
-      setSearching(true);
-      router.push(`/tyres?width=${s.width}&profile=${s.profile}&rim_size=${s.rim}`);
-      return;
-    }
-
-    if (!variantId) {
-      toastError("Vehicle not found", "Please re-select your variant and try again.");
-      return;
-    }
-
-    setSearching(true);
-    try {
-      const res = await fetch(
-        `${API}/api/vehicles/fitment?variantId=${variantId}`,
-      );
-
-      if (!res.ok) {
-        toastError("Could not load fitment data", "Please try again in a moment.");
-        setSearching(false);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (!Array.isArray(data) || !data.length) {
-        toastWarning("No tyre fitment found", "We don't have fitment data for this vehicle yet. Try searching by tyre size instead.");
-        setSearching(false);
-        return;
-      }
-
-      const match = (data[0].front_size as string).match(
-        /^(\d+)\/(\d+)[rR](\d+)/,
-      );
-      if (!match) {
-        toastError("Invalid fitment data", "The tyre size for this vehicle is not in a recognised format.");
-        setSearching(false);
-        return;
-      }
-
-      const [, width, profile, rim] = match;
-      router.push(`/tyres?width=${width}&profile=${profile}&rim_size=${rim}`);
-      // searching stays true — component unmounts on navigation, no flash back to "Find Tyres"
-    } catch {
-      toastError("Search failed", "Could not connect to the server. Please check your connection and try again.");
-      setSearching(false);
-    }
+  const handleVehicleSearch = () => {
+    if (!vehicleComplete) return;
+    const fitment = getFitmentForVehicle(v.make, v.model);
+    if (!fitment) return;
+    router.push(`/tyres?width=${fitment.width}&profile=${fitment.profile}&rim_size=${fitment.rim}`);
   };
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -428,7 +259,7 @@ export default function HeroSection() {
             </div>
             <p className="mt-6 max-w-lg text-sm leading-relaxed text-zinc-300 sm:text-base md:text-lg">
               Premium budget and part-worn tyre fitting plus professional car valeting
-              — search by size or vehicle and get the best deals instantly.
+              — search by tyre size and get the best deals instantly.
             </p>
           </div>
 
@@ -468,26 +299,24 @@ export default function HeroSection() {
           transition={{ duration: 0.6 }}
           className="relative overflow-hidden rounded-[20px] border border-black/8 bg-[#F8F4EA] shadow-[0_12px_40px_rgba(0,0,0,0.3)] backdrop-blur-2xl sm:rounded-[34px] sm:shadow-[0_20px_80px_rgba(0,0,0,0.35)]"
         >
-          {/* Tab switcher */}
-          <div className="grid grid-cols-2 bg-[#EFEBE2] p-1.5 sm:p-2">
+          {/* Heading strip — tabs */}
+          <div className="flex bg-[#EFEBE2]">
             <button
-              onClick={() => handleTabSwitch("size")}
+              type="button"
+              onClick={() => setTab("size")}
               className={cn(
-                "relative h-10 rounded-full text-xs font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
-                activeTab === "size"
-                  ? "bg-[#d9a407] text-white shadow-lg"
-                  : "text-gray-600 hover:text-black",
+                "flex-1 p-3 text-center text-xs font-bold uppercase tracking-wide transition-colors sm:p-4 sm:text-sm",
+                tab === "size" ? "bg-primary text-gray-900" : "text-gray-500 hover:text-gray-700",
               )}
             >
               Search By Tyre Size
             </button>
             <button
-              onClick={() => handleTabSwitch("vehicle")}
+              type="button"
+              onClick={() => setTab("vehicle")}
               className={cn(
-                "relative h-10 rounded-full text-xs font-bold transition-all duration-300 sm:h-[64px] sm:text-lg",
-                activeTab === "vehicle"
-                  ? "bg-[#d9a407] text-white shadow-lg"
-                  : "text-gray-600 hover:text-black",
+                "flex-1 p-3 text-center text-xs font-bold uppercase tracking-wide transition-colors sm:p-4 sm:text-sm",
+                tab === "vehicle" ? "bg-primary text-gray-900" : "text-gray-500 hover:text-gray-700",
               )}
             >
               Search By Vehicle
@@ -495,160 +324,93 @@ export default function HeroSection() {
           </div>
 
           {/* Fields */}
-          <AnimatePresence mode="wait">
-            {activeTab === "vehicle" ? (
-              <motion.div
-                key="vehicle"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.25 }}
-                className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_1fr_220px]"
+          {tab === "size" ? (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_220px]"
+            >
+              <TriggerField
+                label="Width"
+                placeholder="Select Width"
+                value={s.width ? `${s.width}mm` : ""}
+                onClick={() => setOpenDialog("width")}
+              />
+              <TriggerField
+                label="Profile"
+                placeholder="Select Profile"
+                value={s.profile ? `${s.profile}%` : ""}
+                disabled={!s.width}
+                onClick={() => setOpenDialog("profile")}
+              />
+              <TriggerField
+                label="Rim Diameter"
+                placeholder="Select Rim"
+                value={s.rim ? `${s.rim}"` : ""}
+                disabled={!s.profile}
+                onClick={() => setOpenDialog("rim")}
+              />
+              <Button
+                type="button"
+                onClick={handleSearch}
+                disabled={!sizeComplete}
+                className={cn(
+                  "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
+                  sizeComplete
+                    ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
+                    : "cursor-not-allowed bg-gray-300 text-black",
+                )}
               >
-                <TriggerField
-                  label="Make"
-                  placeholder="Select Make"
-                  value={v.make}
-                  onClick={() => setOpenDialog("make")}
-                />
-                <TriggerField
-                  label="Model"
-                  placeholder="Select Model"
-                  value={v.model}
-                  disabled={!v.make}
-                  onClick={() => setOpenDialog("model")}
-                />
-                <TriggerField
-                  label="Year"
-                  placeholder="Select Year"
-                  value={v.year}
-                  disabled={!v.model}
-                  onClick={() => setOpenDialog("year")}
-                />
-                <TriggerField
-                  label="Variant"
-                  placeholder="Select Variant"
-                  value={v.variant}
-                  disabled={!v.year}
-                  onClick={() => setOpenDialog("variant")}
-                />
-                <Button
-                  type="button"
-                  onClick={handleSearch}
-                  disabled={!vehicleComplete || searching}
-                  className={cn(
-                    "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
-                    vehicleComplete && !searching
-                      ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
-                      : "cursor-not-allowed bg-gray-300 text-black",
-                  )}
-                >
-                  {searching ? (
-                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  ) : (
-                    <Search className="mr-2 h-5 w-5" />
-                  )}
-                  {searching ? "Searching..." : "Find Tyres"}
-                </Button>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="size"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.25 }}
-                className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_220px]"
+                <Search className="mr-2 h-5 w-5" />
+                Find Tyres
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="grid grid-cols-2 gap-2 p-3 sm:gap-4 sm:p-6 lg:grid-cols-[1fr_1fr_1fr_220px]"
+            >
+              <TriggerField
+                label="Make"
+                placeholder="Select Make"
+                value={v.make}
+                onClick={() => setOpenDialog("make")}
+              />
+              <TriggerField
+                label="Model"
+                placeholder="Select Model"
+                value={v.model}
+                disabled={!v.make}
+                onClick={() => setOpenDialog("model")}
+              />
+              <TriggerField
+                label="Year"
+                placeholder="Select Year"
+                value={v.year}
+                disabled={!v.model}
+                onClick={() => setOpenDialog("year")}
+              />
+              <Button
+                type="button"
+                onClick={handleVehicleSearch}
+                disabled={!vehicleComplete}
+                className={cn(
+                  "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
+                  vehicleComplete
+                    ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
+                    : "cursor-not-allowed bg-gray-300 text-black",
+                )}
               >
-                <TriggerField
-                  label="Width"
-                  placeholder="Select Width"
-                  value={s.width ? `${s.width}mm` : ""}
-                  onClick={() => setOpenDialog("width")}
-                />
-                <TriggerField
-                  label="Profile"
-                  placeholder="Select Profile"
-                  value={s.profile ? `${s.profile}%` : ""}
-                  disabled={!s.width}
-                  onClick={() => setOpenDialog("profile")}
-                />
-                <TriggerField
-                  label="Rim Diameter"
-                  placeholder="Select Rim"
-                  value={s.rim ? `${s.rim}"` : ""}
-                  disabled={!s.profile}
-                  onClick={() => setOpenDialog("rim")}
-                />
-                <Button
-                  type="button"
-                  onClick={handleSearch}
-                  disabled={!sizeComplete}
-                  className={cn(
-                    "col-span-2 h-12 w-full rounded-[20px] text-sm font-bold transition-all duration-300 sm:h-full sm:min-h-[96px] sm:rounded-[26px] sm:text-lg lg:col-span-1 lg:w-auto",
-                    sizeComplete
-                      ? "bg-[#d9a407] text-white hover:scale-[1.02] hover:bg-[#c89907] active:scale-[0.98]"
-                      : "cursor-not-allowed bg-gray-300 text-black",
-                  )}
-                >
-                  <Search className="mr-2 h-5 w-5" />
-                  Find Tyres
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <Search className="mr-2 h-5 w-5" />
+                Find Tyres
+              </Button>
+            </motion.div>
+          )}
         </motion.div>
       </div>
-
-      {/* ── Vehicle dialogs ──────────────────────────────────────────────────── */}
-
-      <SelectorDialog
-        open={openDialog === "make"}
-        onClose={() => setOpenDialog(null)}
-        step="Step 1 of 4"
-        title="Select Make"
-        subtitle="Choose your vehicle manufacturer"
-        options={makes}
-        popularOptions={POPULAR_MAKES.filter((m) => makes.includes(m))}
-        selected={v.make}
-        onSelect={handleMakeSelect}
-        isLoading={loadingOptions.make}
-      />
-      <SelectorDialog
-        open={openDialog === "model"}
-        onClose={() => setOpenDialog(null)}
-        step="Step 2 of 4"
-        title="Select Model"
-        subtitle={
-          v.make ? `Choose your ${v.make} model` : "Choose your vehicle model"
-        }
-        options={models}
-        selected={v.model}
-        onSelect={handleModelSelect}
-        isLoading={loadingOptions.model}
-      />
-      <SelectorDialog
-        open={openDialog === "year"}
-        onClose={() => setOpenDialog(null)}
-        step="Step 3 of 4"
-        title="Select Year"
-        subtitle="Choose the model year"
-        options={years}
-        selected={v.year}
-        onSelect={handleYearSelect}
-        isLoading={loadingOptions.year}
-      />
-      <SelectorDialog
-        open={openDialog === "variant"}
-        onClose={() => setOpenDialog(null)}
-        step="Step 4 of 4"
-        title="Select Variant"
-        subtitle="Choose the vehicle specification"
-        options={variantDisplayLabels}
-        selected={v.variant}
-        onSelect={handleVariantSelect}
-        isLoading={loadingOptions.variant}
-      />
 
       {/* ── Tyre size dialogs ─────────────────────────────────────────────────── */}
 
@@ -684,6 +446,39 @@ export default function HeroSection() {
         popularOptions={POPULAR_RIMS}
         selected={s.rim}
         onSelect={handleRimSelect}
+      />
+
+      {/* ── Vehicle dialogs ───────────────────────────────────────────────────── */}
+
+      <SelectorDialog
+        open={openDialog === "make"}
+        onClose={() => setOpenDialog(null)}
+        step="Step 1 of 3"
+        title="Select Make"
+        subtitle="Choose your vehicle's manufacturer"
+        options={VEHICLE_MAKES}
+        selected={v.make}
+        onSelect={handleMakeSelect}
+      />
+      <SelectorDialog
+        open={openDialog === "model"}
+        onClose={() => setOpenDialog(null)}
+        step="Step 2 of 3"
+        title="Select Model"
+        subtitle="Choose your vehicle's model"
+        options={modelsForMake}
+        selected={v.model}
+        onSelect={handleModelSelect}
+      />
+      <SelectorDialog
+        open={openDialog === "year"}
+        onClose={() => setOpenDialog(null)}
+        step="Step 3 of 3"
+        title="Select Year"
+        subtitle="Choose your vehicle's model year"
+        options={VEHICLE_YEARS}
+        selected={v.year}
+        onSelect={handleYearSelect}
       />
     </section>
   );

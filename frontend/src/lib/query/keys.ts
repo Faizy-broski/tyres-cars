@@ -21,27 +21,10 @@ export const adminKeys = {
   productCategories: ()                       => ['admin', 'products', 'categories']       as const,
   productCollections: ()                      => ['admin', 'products', 'collections']      as const,
 
-  // Fitment centres & fitters
-  fitmentCentres:     ()                          => ['admin', 'fitment-centres', 'list']         as const,
-  centreList:         (p: Record<string, string>) => ['admin', 'fitment-centres', 'list', p]      as const,
-  fitterApplications: (p: Record<string, string>) => ['admin', 'fitters', 'applications', p]     as const,
-  fitterDetail:       (id: string)                => ['admin', 'fitters', 'detail', id]           as const,
-
   // Brands / Patterns
   brandList:     (p?: Record<string, string>) => p ? ['admin', 'brands',   'list', p] as const : ['admin', 'brands',   'list'] as const,
   patternList:   (p?: Record<string, string>) => p ? ['admin', 'patterns', 'list', p] as const : ['admin', 'patterns', 'list'] as const,
   brandListAll:  ()                           => ['admin', 'brands', 'all']              as const,
-
-  // Warehouses
-  warehouseList: (showInactive: boolean)      => ['admin', 'warehouses', 'list', showInactive] as const,
-
-  // Suppliers
-  supplierList:  (p: Record<string, string>)  => ['admin', 'suppliers', 'list', p]        as const,
-  supplierDetail:(id: string)                 => ['admin', 'suppliers', 'detail', id]     as const,
-
-  // Promotions
-  promotionList:   (p: Record<string, string>) => ['admin', 'promotions', 'list', p]      as const,
-  promotionDetail: (id: string)               => ['admin', 'promotions', 'detail', id]   as const,
 }
 
 export const customerKeys = {
@@ -51,14 +34,3 @@ export const customerKeys = {
   addresses:   ()                          => ['customer', 'addresses']             as const,
 }
 
-export const fitterKeys = {
-  kpis:            ()                          => ['fitter', 'kpis']                              as const,
-  jobs:            ()                          => ['fitter', 'jobs']                              as const,
-  jobDetail:       (id: string)                => ['fitter', 'jobs', 'detail', id]               as const,
-  schedule:        (start: string, end: string)=> ['fitter', 'schedule', start, end]             as const,
-  earningsSummary: ()                          => ['fitter', 'earnings', 'summary']              as const,
-  earningsList:    (p: Record<string, string>) => ['fitter', 'earnings', 'list', p]             as const,
-  pricing:         ()                          => ['fitter', 'pricing']                          as const,
-  profile:         ()                          => ['fitter', 'profile']                          as const,
-  services:        ()                          => ['fitter', 'services']                         as const,
-}

@@ -19,13 +19,13 @@ interface SkuStock {
   product_id: string
   sku: string
   tyre_size_display: string
-  product_stock: { warehouse_id: string; available_stock: number; warehouses: { warehouse_name: string } | null }[]
+  product_stock: { available_stock: number; minimum_stock_level: number }[]
 }
 
 interface SkuPrice {
   product_id: string
   tyre_size_display: string
-  product_prices: { price_inc_gst: number; customer_groups: { group_name: string } | null }[]
+  product_prices: { price_type: string; price_inc_gst: number }[]
 }
 
 interface PatternInfo {
@@ -75,17 +75,18 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
 }) {
   const [saving, setSaving] = useState(false)
 
-  const initial: Record<string, Record<string, number>> = {}
+  const initial: Record<string, { availableStock: number; lowStockAlert: number }> = {}
   for (const s of skus) {
-    initial[s.product_id] = {}
-    for (const ps of s.product_stock) {
-      if (ps.warehouse_id) initial[s.product_id][ps.warehouse_id] = ps.available_stock
+    const stock = s.product_stock[0]
+    initial[s.product_id] = {
+      availableStock: stock?.available_stock ?? 0,
+      lowStockAlert:  stock?.minimum_stock_level ?? 10,
     }
   }
   const [stocks, setStocks] = useState(initial)
 
-  function set(variantId: string, warehouseId: string, val: number) {
-    setStocks(prev => ({ ...prev, [variantId]: { ...prev[variantId], [warehouseId]: val } }))
+  function set(variantId: string, patch: Partial<{ availableStock: number; lowStockAlert: number }>) {
+    setStocks(prev => ({ ...prev, [variantId]: { ...prev[variantId], ...patch } }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -93,14 +94,11 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
     setSaving(true)
     try {
       const token = await getAdminToken()
-      const updates = Object.entries(stocks).flatMap(([variantId, wh]) =>
-        Object.entries(wh).map(([warehouseId, stock]) => ({ variantId, warehouseId, stock }))
-      )
-      const results = await Promise.all(updates.map(u =>
-        fetch(`${API}/api/admin/products/${patternId}/variants/${u.variantId}/stock`, {
+      const results = await Promise.all(Object.entries(stocks).map(([variantId, row]) =>
+        fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/stock`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ warehouseId: u.warehouseId, availableStock: u.stock }),
+          body: JSON.stringify({ availableStock: row.availableStock, lowStockAlert: row.lowStockAlert }),
         })
       ))
       const failed = results.find(r => !r.ok)
@@ -120,33 +118,36 @@ function EditStockModal({ patternId, skus, open, onClose, onSuccess }: {
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
         <div className="overflow-y-auto flex-1 px-6 py-4 space-y-5">
           {skus.map(sku => (
-            <div key={sku.product_id}>
-              <p className="text-sm font-medium text-zinc-800 mb-2">
+            <div key={sku.product_id} className="flex items-center gap-3">
+              <p className="text-sm font-medium text-zinc-800 flex-1 min-w-0 truncate">
                 {sku.tyre_size_display} <span className="text-zinc-400 font-normal text-xs">— {sku.sku}</span>
               </p>
-              {sku.product_stock.length === 0 ? (
-                <p className="text-xs text-zinc-400 italic">No stock rows yet. Use the variant detail page to add stock per warehouse.</p>
-              ) : (
-                <div className="space-y-2">
-                  {sku.product_stock.map((ps, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <span className="text-sm text-zinc-600 w-40 truncate">{ps.warehouses?.warehouse_name ?? 'Unknown'}</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        value={stocks[sku.product_id]?.[ps.warehouse_id ?? ''] ?? ps.available_stock}
-                        onChange={e => set(sku.product_id, ps.warehouse_id ?? '', Number(e.target.value))}
-                        aria-label={`Stock for ${sku.sku} at ${ps.warehouses?.warehouse_name ?? 'warehouse'}`}
-                        className="w-24"
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
+              <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+                Available
+                <Input
+                  type="number"
+                  min={0}
+                  value={stocks[sku.product_id]?.availableStock ?? 0}
+                  onChange={e => set(sku.product_id, { availableStock: Number(e.target.value) })}
+                  aria-label={`Available stock for ${sku.sku}`}
+                  className="w-20"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-zinc-500">
+                Low stock alert
+                <Input
+                  type="number"
+                  min={0}
+                  value={stocks[sku.product_id]?.lowStockAlert ?? 10}
+                  onChange={e => set(sku.product_id, { lowStockAlert: Number(e.target.value) })}
+                  aria-label={`Low stock alert for ${sku.sku}`}
+                  className="w-20"
+                />
+              </label>
             </div>
           ))}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 flex-shrink-0">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
           <DialogClose asChild>
             <Button type="button" variant="outline">Cancel</Button>
           </DialogClose>
@@ -168,8 +169,7 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
   for (const s of skus) {
     initial[s.product_id] = {}
     for (const pp of s.product_prices) {
-      const key = pp.customer_groups?.group_name ?? 'Retail'
-      initial[s.product_id][key] = pp.price_inc_gst
+      initial[s.product_id][pp.price_type] = pp.price_inc_gst
     }
   }
   const [prices, setPrices] = useState(initial)
@@ -218,26 +218,23 @@ function EditPricesModal({ patternId, skus, open, onClose, onSuccess }: { patter
                 <p className="text-xs text-zinc-400 italic">No prices configured.</p>
               ) : (
                 <div className="space-y-2">
-                  {sku.product_prices.map((pp, i) => {
-                    const group = pp.customer_groups?.group_name ?? 'Retail'
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <span className="text-sm text-zinc-600 w-32">{group}</span>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            value={prices[sku.product_id]?.[group] ?? pp.price_inc_gst}
-                            onChange={e => set(sku.product_id, group, Number(e.target.value))}
-                            aria-label={`Price for ${sku.tyre_size_display} — ${group}`}
-                            className="w-28 pl-6"
-                          />
-                        </div>
+                  {sku.product_prices.map((pp, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-sm text-zinc-600 w-32 capitalize">{pp.price_type.replace('_', ' ')}</span>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={prices[sku.product_id]?.[pp.price_type] ?? pp.price_inc_gst}
+                          onChange={e => set(sku.product_id, pp.price_type, Number(e.target.value))}
+                          aria-label={`Price for ${sku.tyre_size_display} — ${pp.price_type}`}
+                          className="w-28 pl-6"
+                        />
                       </div>
-                    )
-                  })}
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

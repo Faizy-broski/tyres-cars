@@ -10,7 +10,7 @@ import { SplitView } from '@/components/admin/SplitView'
 import { StatusSelect } from '@/components/admin/StatusSelect'
 import { PatternFormPanel, EMPTY_PATTERN_FORM, type PatternFormState } from '@/components/admin/brands/PatternFormPanel'
 import { toastError, toastSuccess } from '@/lib/toast'
-import { Trash2, Upload } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useAdminBrandsAll, useAdminPatterns, type AdminPattern, type PaginatedPatterns } from '@/lib/query/hooks'
 import { adminKeys } from '@/lib/query/keys'
 import { TableBodySpinner } from '@/components/ui/table-loader'
@@ -293,13 +293,6 @@ export default function PatternsPage() {
         description="All tyre patterns across every brand"
         headerAction={
           <>
-            <Link
-              href="/admin/products/import?type=patterns"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors"
-            >
-              <Upload className="w-4 h-4" />
-              Bulk Import
-            </Link>
             <button
               type="button"
               onClick={handleNewPattern}

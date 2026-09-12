@@ -12,7 +12,7 @@ const stats = [
   { label: 'Years in Business', value: '12+' },
   { label: 'Tyres Fitted', value: '150k+' },
   { label: 'Happy Customers', value: '40k+' },
-  { label: 'Fitment Partners', value: '80+' },
+  { label: 'Tyre Brands', value: '30+' },
 ]
 
 const values = [
@@ -28,13 +28,13 @@ const values = [
   },
   {
     icon: Award,
-    title: 'Certified Fitters',
-    desc: 'We work with a nationwide network of certified fitment partners who take pride in their craft.',
+    title: 'Certified Quality',
+    desc: 'Every tyre is fitted by our own trained, certified technicians who take pride in their craft.',
   },
   {
     icon: Truck,
     title: 'Fast Delivery',
-    desc: 'From warehouse to your door or fitter, we keep you moving with reliable, tracked shipping.',
+    desc: 'From warehouse to your door, we keep you moving with reliable, tracked shipping.',
   },
 ]
 
@@ -82,12 +82,11 @@ export default function AboutPage() {
             <p className="mt-5 text-base leading-relaxed text-zinc-600 md:text-lg">
               Tyres &amp; Car Valeting started with a simple frustration: buying tyres shouldn&apos;t mean guessing sizes,
               overpaying at the shop, or waiting weeks for a fitting slot. We built an online platform that matches
-              you with the exact right tyre for your vehicle, delivers it fast, and connects you with a certified
-              fitter near you — all in a few clicks.
+              you with the exact right tyre for your vehicle and delivers it fast — all in a few clicks.
             </p>
             <p className="mt-4 text-base leading-relaxed text-zinc-600 md:text-lg">
-              Today we work with leading global brands and a nationwide network of fitment partners to keep drivers
-              safe, informed, and on the road — plus full car valeting services to keep your ride looking its best.
+              Today we work with leading global tyre brands to keep drivers safe, informed, and on the road — plus
+              full car valeting services to keep your ride looking its best.
             </p>
             <Link
               href="/tyres"

@@ -84,7 +84,7 @@ export default async function ProductDetailPage({ params }: Props) {
         show_on_website,
         brands ( brand_name, brand_slug, is_active, show_on_website )
       ),
-      product_prices ( price_type, price_inc_gst, customer_group_id )
+      product_prices ( price_type, price_inc_gst )
     `)
     .eq('product_slug', slug)
     .eq('status', 'active')
@@ -110,38 +110,11 @@ export default async function ProductDetailPage({ params }: Props) {
     .order('width').order('profile').order('rim_size')
 
   const retail_price = (sku.product_prices ?? [])
-    .find((p: { price_type: string; customer_group_id: string | null }) =>
-      p.price_type === 'retail' && !p.customer_group_id
-    )?.price_inc_gst ?? null
+    .find((p: { price_type: string }) => p.price_type === 'retail')
+    ?.price_inc_gst ?? null
 
-  // Find the best active promotion that applies to this SKU (brand / product / pattern)
-  let promo_price: number | null = null
-  if (retail_price != null) {
-    const todayPKT = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
-    const { data: matchingPromos } = await supabase
-      .from('promotions')
-      .select('discount_type, discount_value')
-      .eq('is_active', true)
-      .lte('start_date', todayPKT)
-      .gte('end_date',   todayPKT)
-      .neq('discount_type', 'bundle')
-      .or(
-        `and(applies_to.eq.brand,target_id.eq.${sku.brand_id}),` +
-        `and(applies_to.eq.product,target_id.eq.${sku.product_id}),` +
-        `and(applies_to.eq.pattern,target_id.eq.${sku.pattern_id})`
-      )
-
-    if (matchingPromos && matchingPromos.length > 0) {
-      const bestPrice = matchingPromos.reduce((best: number, p: { discount_type: string; discount_value: number }) => {
-        const effective =
-          p.discount_type === 'percent'
-            ? retail_price * (1 - p.discount_value / 100)
-            : Math.max(0, retail_price - p.discount_value)
-        return effective < best ? effective : best
-      }, retail_price)
-      if (bestPrice < retail_price) promo_price = Math.round(bestPrice * 100) / 100
-    }
-  }
+  // Promotions feature has been removed — no promo pricing is computed.
+  const promo_price: number | null = null
 
   const product = {
     ...sku,

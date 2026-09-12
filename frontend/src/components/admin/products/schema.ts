@@ -70,7 +70,6 @@ export const pricingSchema = z.object({
   costPrice:     optNum,
   inventory:     numWithDefault(0),
   lowStockAlert: numWithDefault(10),
-  warehouseId:   z.string().optional(),
 })
 
 // ── FAQ item ───────────────────────────────────────────────────────────────

@@ -9,8 +9,6 @@ import { toastError, toastSuccess } from '@/lib/toast'
 import type { Sku, PatternRef, ProductPrice, Category } from '@/types/admin.types'
 import { VariantPricingMenu, VariantDangerZone } from '@/components/admin/products/VariantDetailActions'
 import StockTab from '@/components/admin/products/StockTab'
-import InternalStockSection from '@/components/admin/products/InternalStockSection'
-import SupplierMappingSection from '@/components/admin/products/SupplierMappingSection'
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -235,31 +233,12 @@ export default function VariantDetailPage() {
 
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <h2 className="text-sm font-semibold text-zinc-900 mb-4">Stock</h2>
-            <StockTab productId={variantId} patternId={id} />
-          </div>
-
-          {/* Section 4 — Internal Owned Stock (per branch) */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-4">
-              4. Internal Owned Stock (Auto-Synced)
-            </h2>
-            <InternalStockSection
-              variantId={variantId}
+            <StockTab
+              productId={variantId}
               patternId={id}
-              retailPrice={prices.find(p => p.price_type === 'retail')?.price_inc_gst ?? null}
-              priceId={prices.find(p => p.price_type === 'retail')?.price_id ?? null}
-            />
-          </div>
-
-          {/* Section 5 — Supplier API / EDI Mapping (External Stock) */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-4">
-              5. Supplier API / EDI Mapping (External Stock)
-            </h2>
-            <SupplierMappingSection
-              variantId={variantId}
-              patternId={id}
-              ourSkuMatch={sku.tyre_size_display || sku.sku}
+              initialAvailableStock={sku.product_stock?.[0]?.available_stock ?? 0}
+              initialLowStockAlert={sku.product_stock?.[0]?.minimum_stock_level ?? sku.low_stock_alert ?? 10}
+              onSaved={onRefresh}
             />
           </div>
         </div>
@@ -284,12 +263,6 @@ export default function VariantDetailPage() {
                       {p.price_inc_gst != null ? `A$${Number(p.price_inc_gst).toFixed(2)}` : '—'}
                     </dd>
                   </div>
-                  {p.warehouses?.warehouse_name && (
-                    <div className="flex justify-between text-xs">
-                      <dt className="text-zinc-400">Warehouse</dt>
-                      <dd className="text-zinc-500">{p.warehouses.warehouse_name}</dd>
-                    </div>
-                  )}
                   {(p.start_date || p.end_date) && (
                     <div className="flex justify-between text-xs">
                       <dt className="text-zinc-400">Dates</dt>

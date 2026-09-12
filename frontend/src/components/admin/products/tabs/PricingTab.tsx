@@ -3,17 +3,13 @@
 import { useFormContext, useWatch } from 'react-hook-form'
 import type { CreateProductFormValues } from '../schema'
 
-type Props = {
-  warehouses: { warehouse_id: string; warehouse_name: string }[]
-}
-
 function calcMargin(price: number, cost: number): string {
   if (!price || !cost) return '—'
   return ((1 - cost / price) * 100).toFixed(1) + '%'
 }
 
-export default function PricingTab({ warehouses }: Props) {
-  const { register, control, setValue } = useFormContext<CreateProductFormValues>()
+export default function PricingTab() {
+  const { register, control } = useFormContext<CreateProductFormValues>()
 
   const variants = useWatch({ control, name: 'variants' }) ?? []
   const pricing  = useWatch({ control, name: 'pricing'  }) ?? []
@@ -161,26 +157,6 @@ export default function PricingTab({ warehouses }: Props) {
           </tbody>
         </table>
       </div>
-
-      {/* Warehouse selector for initial stock */}
-      {warehouses.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-3">
-          <label className="text-sm text-zinc-600">Assign inventory to warehouse:</label>
-          <select
-            onChange={(e) => {
-              variants.forEach((_, i) => {
-                setValue(`pricing.${i}.warehouseId`, e.target.value, { shouldDirty: true })
-              })
-            }}
-            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-          >
-            <option value="">Select warehouse</option>
-            {warehouses.map(w => (
-              <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>
-            ))}
-          </select>
-        </div>
-      )}
     </div>
   )
 }

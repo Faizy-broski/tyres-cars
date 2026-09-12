@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Bell, ChevronDown, Menu, Search, Settings, X,
-  Gauge, ClipboardList, LayoutDashboard, Truck, Archive,
-  Users, Tag, CircleDollarSign, ShoppingCart, PackageOpen,
-  CircleDot, Car, Ship, Wrench, Package, Wrench as WrenchIcon,
+  Gauge, ClipboardList, LayoutDashboard,
+  Users, Package,
 } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -32,28 +31,11 @@ const ALL_PAGES: NavPage[] = [
   { label: 'Products',               href: '/admin/products',                     icon: LayoutDashboard,  keywords: ['skus', 'tyres', 'catalogue'] },
   { label: 'Brands',                 href: '/admin/products/brands',              icon: LayoutDashboard,  keywords: ['brand', 'manufacturer'] },
   { label: 'Patterns',               href: '/admin/products/patterns',            icon: LayoutDashboard,  keywords: ['tread', 'model', 'pattern'] },
-  // { label: 'Collections',            href: '/admin/products/collections',         icon: LayoutDashboard,  keywords: ['group', 'set'] },
   { label: 'Categories',             href: '/admin/products/categories',          icon: LayoutDashboard,  keywords: ['tags', 'type'] },
-  { label: 'Warehouses',             href: '/admin/warehouses',                   icon: Archive,          keywords: ['storage', 'location', 'stock'] },
-  { label: 'Suppliers',              href: '/admin/suppliers',                    icon: Truck,            keywords: ['vendor', 'wholesaler'] },
-  { label: 'Inventory',              href: '/admin/inventory',                    icon: Archive,          keywords: ['stock', 'mapping', 'supplier map'] },
   { label: 'Customers',              href: '/admin/customers',                    icon: Users,            keywords: ['buyer', 'client', 'accounts'] },
-  { label: 'Customer Groups',        href: '/admin/customers/groups',             icon: Users,            keywords: ['segment', 'tier', 'group'] },
-  { label: 'Promotions',             href: '/admin/promotions',                   icon: Tag,              keywords: ['discount', 'coupon', 'deal', 'sale'] },
- // { label: 'Price Lists',            href: '/admin/pricing',                      icon: CircleDollarSign, keywords: ['pricing', 'rate', 'wholesale'] },
-  { label: 'Purchase Orders',        href: '/admin/purchase-orders',              icon: ShoppingCart,     keywords: ['po', 'restock', 'procurement'] },
-  { label: 'Shipments',              href: '/admin/shipments',                    icon: PackageOpen,      keywords: ['delivery', 'shipping', 'dispatch'] },
-  { label: 'Wheels',                 href: '/admin/wheels',                       icon: CircleDot,        keywords: ['rim', 'alloy'] },
-  { label: 'Wheel Brands',           href: '/admin/wheels/brands',               icon: CircleDot,        keywords: ['rim brand', 'alloy brand'] },
-  { label: 'Vehicles',               href: '/admin/vehicles',                     icon: Car,              keywords: ['car', 'make', 'model', 'fitment'] },
-  { label: 'Shipping Methods',       href: '/admin/shipping-methods',            icon: Ship,             keywords: ['courier', 'freight', 'delivery method'] },
-  { label: 'Fitment Centres',        href: '/admin/fitters/centres',             icon: Wrench,           keywords: ['fitter', 'fitment', 'garage', 'workshop'] },
-  { label: 'Fitter Applications',    href: '/admin/fitters/applications',        icon: Wrench,           keywords: ['fitter application', 'approval', 'onboard'] },
   { label: 'New Product',            href: '/admin/products/new',                icon: LayoutDashboard,  keywords: ['add product', 'create product'] },
   { label: 'New Brand',              href: '/admin/products/brands',             icon: LayoutDashboard,  keywords: ['add brand'] },
   { label: 'New Pattern',            href: '/admin/products/patterns',           icon: LayoutDashboard,  keywords: ['add pattern'] },
-  { label: 'New Purchase Order',     href: '/admin/purchase-orders/new',         icon: ShoppingCart,     keywords: ['create po', 'add po'] },
-  { label: 'New Shipment',           href: '/admin/shipments/new',               icon: PackageOpen,      keywords: ['create shipment'] },
 ]
 
 function matchPage(page: NavPage, q: string): boolean {
@@ -154,8 +136,6 @@ export default function AdminHeader({ userEmail, onMenuToggle }: Props) {
             // Toast with link to the relevant page
             const href = n.metadata?.order_id
               ? `/admin/orders/${n.metadata.order_id}`
-              : n.metadata?.job_id
-              ? `/admin/fitters`
               : '/admin/orders'
             toast(n.title, {
               description: n.body ?? undefined,
@@ -419,7 +399,6 @@ export default function AdminHeader({ userEmail, onMenuToggle }: Props) {
                         >
                           <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${!n.is_read ? 'bg-amber-100' : 'bg-zinc-100'}`}>
                             {n.type === 'new_order'    ? <Package className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />
-                           : n.type === 'job_assigned' ? <WrenchIcon className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />
                            : <Bell className={`w-4 h-4 ${!n.is_read ? 'text-amber-600' : 'text-zinc-500'}`} />}
                           </div>
                           <div className="flex-1 min-w-0">

@@ -9,7 +9,12 @@ BEGIN;
 -- 1. Rename fitment_centres PK column and name column
 -- -------------------------------------------------------
 ALTER TABLE fitment_centres RENAME COLUMN fitment_centre_id TO fitment_id;
-ALTER TABLE fitment_centres RENAME COLUMN centre_name TO business_name;
+
+-- initial_schema.sql already defines both centre_name and business_name as
+-- separate columns, so the straight rename below fails with "column
+-- business_name already exists" on a from-scratch replay. Drop the redundant
+-- legacy column instead — business_name is the one the app has always used.
+ALTER TABLE fitment_centres DROP COLUMN IF EXISTS centre_name;
 
 -- -------------------------------------------------------
 -- 2. Rename FK columns in every child table

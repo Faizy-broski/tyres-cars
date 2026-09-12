@@ -1,46 +1,40 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
-import { toastSuccess, toastError } from '@/lib/toast'
+import { toastError } from '@/lib/toast'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
+const SUPPORT_EMAIL = 'support@tyrevault.com.au'
+
 export default function ContactForm() {
-  const [submitting, setSubmitting] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
 
-  async function handleSubmit(e: FormEvent) {
+  // There is no backend endpoint to submit this form to — hand the message
+  // off to the visitor's own email client instead.
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!name.trim() || !email.trim() || !message.trim()) {
       toastError('Please fill in your name, email and message.')
       return
     }
-    setSubmitting(true)
-    try {
-      const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-      const res = await fetch(`${API}/api/contact`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name, email, phone: phone || undefined, subject: subject || undefined, message,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to send message')
 
-      toastSuccess('Message sent', "We'll get back to you shortly.")
-      setName(''); setEmail(''); setPhone(''); setSubject(''); setMessage('')
-    } catch (err) {
-      console.error('[ContactForm] submit error', err)
-      toastError('Something went wrong', 'Please try again or email support@tyrevault.com.au directly.')
-    } finally {
-      setSubmitting(false)
-    }
+    const body = [
+      `Name: ${name}`,
+      `Email: ${email}`,
+      phone ? `Phone: ${phone}` : null,
+      '',
+      message,
+    ].filter(Boolean).join('\n')
+
+    const mailto = `mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(subject || 'Website enquiry')}&body=${encodeURIComponent(body)}`
+    window.location.href = mailto
   }
 
   return (
@@ -81,11 +75,13 @@ export default function ContactForm() {
 
       <Button
         type="submit"
-        disabled={submitting}
         className="h-12 w-full rounded-full bg-primary px-8 font-oswald text-lg font-bold italic text-zinc-950 hover:bg-[#c89907]"
       >
-        {submitting ? 'Sending…' : 'Send Message'}
+        Send Message
       </Button>
+      <p className="text-center text-xs text-zinc-400">
+        This opens your email app addressed to {SUPPORT_EMAIL}.
+      </p>
     </form>
   )
 }

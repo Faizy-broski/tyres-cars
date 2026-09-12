@@ -1,19 +1,7 @@
-drop view if exists public.fitment_centres_with_users;
+-- =============================================================================
+-- Retired: created a view over fitment_centres, a table that no longer
+-- exists (fitment-centre booking has been removed from the app). The
+-- simplify migration also explicitly drops this view if present.
+-- =============================================================================
 
-create view public.fitment_centres_with_users as
-select
-  fc.fitment_centre_id,
-  fc.user_id,
-  fc.business_name,
-  fc.partner_id,
-  fc.is_active,
-  fc.contact_phone,
-  fc.business_number,
-  fc.created_at,
-  p.role,
-  au.email
-from fitment_centres fc
-left join profiles p
-  on p.id = fc.user_id
-left join auth.users au
-  on au.id = p.id;
+SELECT 1;

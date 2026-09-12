@@ -53,7 +53,7 @@ export default async function PatternPage({ params }: Props) {
 
   const { data: skusRaw } = await supabase
     .from('skus')
-    .select('product_id, product_slug, tyre_size_display, width, profile, rim_size, runflat, xl_reinforced, total_available_stock, product_prices(price_type, price_inc_gst, customer_group_id)')
+    .select('product_id, product_slug, tyre_size_display, width, profile, rim_size, runflat, xl_reinforced, total_available_stock, product_prices(price_type, price_inc_gst)')
     .eq('pattern_id', patternRow.pattern_id)
     .eq('status', 'active')
     .order('width')
@@ -62,8 +62,7 @@ export default async function PatternPage({ params }: Props) {
 
   const skus = (skusRaw ?? []).map(s => {
     const retail = (s.product_prices as any[])?.find(
-      (p: { price_type: string; customer_group_id: string | null }) =>
-        p.price_type === 'retail' && !p.customer_group_id
+      (p: { price_type: string }) => p.price_type === 'retail'
     )?.price_inc_gst ?? null
     return { ...s, retail_price: retail as number | null }
   })

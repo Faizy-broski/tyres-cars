@@ -1,16 +1,13 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  ShoppingCart, Wrench, Lock, Tag, ChevronDown,
-  Trash2, ChevronRight, Truck, ShieldCheck, RotateCcw, ImageOff
+  ShoppingCart, Lock, ChevronDown,
+  Trash2, Truck, ShieldCheck, RotateCcw, ImageOff
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { useCartStore } from '@/stores/cart.store'
-import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
 
 function isAbsoluteUrl(url: string) {
   return url.startsWith('https://') || url.startsWith('http://')
@@ -43,45 +40,15 @@ function EmptyCart() {
 export default function CartPage() {
   const {
     items, qty, removeItem, updateQuantity,
-    subtotal, itemCount, grandTotal,
-    fittingSelection, setFittingSelection,
+    subtotal, itemCount,
   } = useCartStore()
 
   const router = useRouter()
-  const [fitterModalOpen, setFitterModalOpen] = useState(false)
-  const [promoOpen,       setPromoOpen]       = useState(false)
-  const [promoCode,       setPromoCode]       = useState('')
-  const [isApplying,      setIsApplying]      = useState(false)
 
   const count      = itemCount()
   const tyresTotal = subtotal()
-  const total      = grandTotal()
+  const total      = tyresTotal
   const gst        = +(total / 11).toFixed(2)
-
-  async function handleApplyPromo() {
-    if (!promoCode.trim() || isApplying) return
-    setIsApplying(true)
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? ''
-      const res = await fetch(`${apiUrl}/api/promotions/validate-code`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: promoCode.trim() }),
-      })
-      if (!res.ok) {
-        toast.error('Invalid or expired promo code.')
-        return
-      }
-      const { discount } = await res.json()
-      toast.success(`Promo applied! You save ${fmt(discount)}.`)
-      setPromoCode('')
-      setPromoOpen(false)
-    } catch {
-      toast.error('Could not apply promo code. Please try again.')
-    } finally {
-      setIsApplying(false)
-    }
-  }
 
   if (items.length === 0) return <EmptyCart />
 
@@ -283,13 +250,6 @@ export default function CartPage() {
                   <span className="text-sm font-bold text-zinc-900">{fmt(tyresTotal)}</span>
                 </div>
 
-                {fittingSelection && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">Fitting Service</span>
-                    <span className="text-sm font-bold text-zinc-900">{fmt(fittingSelection.totalFittingCost)}</span>
-                  </div>
-                )}
-
                 <div className="flex justify-between items-center">
                   <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-zinc-500">
                     <Truck className="w-3.5 h-3.5 text-primary" />
@@ -304,40 +264,6 @@ export default function CartPage() {
                   </button>
                 </div>
 
-                {/* Promo code */}
-                <div className="border-t border-zinc-100 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setPromoOpen(v => !v)}
-                    className="flex items-center gap-2 w-full"
-                  >
-                    <span className="flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-[11px] font-black text-zinc-900 uppercase tracking-wide">
-                      <Tag className="w-3 h-3" />
-                      Have a Promo Code?
-                    </span>
-                    <span className="text-xs font-bold text-primary underline">Click here to apply!</span>
-                  </button>
-                  {promoOpen && (
-                    <div className="mt-2 flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCode}
-                        onChange={e => setPromoCode(e.target.value)}
-                        placeholder="Enter promo code"
-                        className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleApplyPromo}
-                        disabled={!promoCode.trim() || isApplying}
-                        className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {isApplying ? 'Applying…' : 'Apply'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-
                 {/* Grand total */}
                 <div className="flex justify-between items-end border-t-2 border-zinc-900 pt-3">
                   <div>
@@ -348,66 +274,6 @@ export default function CartPage() {
                 </div>
               </div>
             </div>
-
-            {/* Fitting upsell — if not already selected */}
-            {!fittingSelection ? (
-              <button
-                type="button"
-                onClick={() => setFitterModalOpen(true)}
-                className="w-full flex items-start justify-between rounded-2xl border border-zinc-200 bg-white hover:border-primary hover:bg-primary/5 px-4 py-4 transition-colors group"
-              >
-                <div className="flex items-start gap-3 text-left">
-                  <div className="mt-0.5 flex items-center justify-center w-9 h-9 rounded-full bg-primary/10 group-hover:bg-primary/20 shrink-0 transition-colors">
-                    <Wrench className="w-4 h-4 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[10px] font-black bg-red-500 text-white rounded px-1.5 py-0.5 uppercase tracking-wide">HOT</span>
-                      <p className="text-sm font-bold text-zinc-800">Add Fitting Service</p>
-                    </div>
-                    <p className="text-xs text-zinc-500 leading-relaxed">
-                      Deliver to a selected fitting partner who will fit your tyres hassle free.
-                    </p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-primary shrink-0 mt-1 transition-colors" />
-              </button>
-            ) : (
-              <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 space-y-2">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <Wrench className="w-4 h-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Fitting Service Added</p>
-                      <p className="text-sm font-bold text-zinc-900 truncate">{fittingSelection.centreName}</p>
-                      {fittingSelection.address && (
-                        <p className="text-xs text-zinc-400 truncate">{fittingSelection.address}</p>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-sm font-bold text-zinc-900 shrink-0">
-                    {fmt(fittingSelection.totalFittingCost)}
-                  </p>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setFitterModalOpen(true)}
-                    className="text-xs text-primary hover:underline font-medium"
-                  >
-                    Change partner
-                  </button>
-                  <span className="text-zinc-300">|</span>
-                  <button
-                    type="button"
-                    onClick={() => setFittingSelection(null)}
-                    className="text-xs text-red-500 hover:underline font-medium"
-                  >
-                    Remove
-                  </button>
-                </div>
-              </div>
-            )}
 
             {/* Secure Checkout CTA */}
             <button
@@ -429,14 +295,6 @@ export default function CartPage() {
           </div>
         </div>
       </div>
-
-      {/* Fitter modal */}
-      <FitterSelectionModal
-        open={fitterModalOpen}
-        onClose={() => setFitterModalOpen(false)}
-        tyreQty={count}
-        cartSubtotal={tyresTotal}
-      />
     </div>
   )
 }

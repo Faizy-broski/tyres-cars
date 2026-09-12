@@ -107,22 +107,6 @@ function InlineStatusSelect({ orderId, status }: { orderId: string; status: Orde
   )
 }
 
-function DeliveryTypeCell({ orderType, fitmentId }: { orderType: string | null; fitmentId: string | null }) {
-  if (!orderType || orderType === 'home_delivery' || orderType === 'shipping') {
-    return <span className="text-xs text-zinc-800 font-medium">Home Delivery</span>
-  }
-  return (
-    <span className="flex flex-col gap-0.5 text-xs">
-      <span className="text-zinc-800 font-medium">Fitment Centre</span>
-      {fitmentId && (
-        <Link href={`/admin/fitters/${fitmentId}`} className="font-bold text-primary hover:underline">
-          #FIT-001
-        </Link>
-      )}
-    </span>
-  )
-}
-
 function fmtMoney(n: number) {
   return `$${n.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
@@ -413,7 +397,7 @@ export default function OrdersClient({ initialStats, initialOrders }: Props) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 bg-primary/10">
-                {['Order #', 'Created ↓', 'Customer', 'Address', 'Delivery Type', 'Payment', 'Fulfillment', 'Items', 'Order Total', 'Actions'].map(h => (
+                {['Order #', 'Created ↓', 'Customer', 'Address', 'Payment', 'Fulfillment', 'Items', 'Order Total', 'Actions'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-bold text-zinc-800 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -423,7 +407,7 @@ export default function OrdersClient({ initialStats, initialOrders }: Props) {
                 <TableBodySpinner />
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-4 py-16 text-center">
+                  <td colSpan={9} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-2 mx-auto">
                       <svg className="w-10 h-10 text-zinc-200" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
@@ -467,9 +451,6 @@ export default function OrdersClient({ initialStats, initialOrders }: Props) {
                     </td>
                     <td className="px-4 py-3 text-xs text-zinc-700 max-w-40 truncate">
                       {addressSnippet(o.shipping_address_snapshot)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <DeliveryTypeCell orderType={o.order_type} fitmentId={o.fitment_id} />
                     </td>
                     <td className="px-4 py-3">
                       <InlinePaymentSelect orderId={o.order_id} status={o.payment_status} />

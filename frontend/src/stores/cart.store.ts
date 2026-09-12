@@ -13,27 +13,12 @@ export interface CartItem {
   stock: number
 }
 
-export interface FittingSelection {
-  centreId:                    string
-  centreName:                  string
-  address:                     string   // "Suburb, State POSTCODE"
-  distanceKm:                  number | null
-  durationMin:                 number | null
-  isMobile:                    boolean
-  fittingPricePerTyre:         number
-  totalFittingCost:            number
-  wheelAlignment:              null | { type: '2_wheel' | '4_wheel' | 'single'; price: number }
-  // raw alignment prices stored for re-render (never sent as authoritative price)
-  wheelAlignmentPrice:         number | null  // the single price from fitment_centres
-}
-
 export type AddItemError = 'out_of_stock' | 'insufficient_stock' | 'api_error'
 
 interface CartStore {
   items:           CartItem[]
   qty:             Record<string, number>
   isOpen:          boolean
-  fittingSelection: FittingSelection | null
 
   addItem:              (item: CartItem, quantity?: number) => Promise<{ error: AddItemError | null; available?: number }>
   removeItem:           (id: string) => void
@@ -41,20 +26,18 @@ interface CartStore {
   clearCart:            () => void
   openCart:             () => void
   closeCart:            () => void
-  setFittingSelection:  (s: FittingSelection | null) => void
+  refreshPrices:        () => Promise<void>
 
   itemCount:    () => number
   subtotal:     () => number
-  grandTotal:   () => number
 }
 
 export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
-      items:            [],
-      qty:              {},
-      isOpen:           false,
-      fittingSelection: null,
+      items: [],
+      qty:   {},
+      isOpen: false,
 
       async addItem(item, quantity = 1) {
         const currentQty = get().qty[item.id] ?? 0
@@ -119,11 +102,30 @@ export const useCartStore = create<CartStore>()(
         })
       },
 
-      clearCart() { set({ items: [], qty: {}, isOpen: false, fittingSelection: null }) },
+      clearCart() { set({ items: [], qty: {}, isOpen: false }) },
       openCart()  { set({ isOpen: true  }) },
       closeCart() { set({ isOpen: false }) },
 
-      setFittingSelection(s) { set({ fittingSelection: s }) },
+      // Refreshes cart line prices from the server-authoritative /api/cart/prices
+      // endpoint (never trust client-cached prices at checkout time).
+      async refreshPrices() {
+        const items = get().items
+        if (!items.length) return
+        try {
+          const res = await fetch(`${API}/api/cart/prices`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ items: items.map(i => ({ product_id: i.id })) }),
+          })
+          if (!res.ok) return
+          const body = await res.json() as { prices: Record<string, number> }
+          set(state => ({
+            items: state.items.map(i =>
+              body.prices[i.id] != null ? { ...i, price: body.prices[i.id] } : i
+            ),
+          }))
+        } catch { /* best-effort — keep last known prices offline */ }
+      },
 
       itemCount() { return Object.values(get().qty).reduce((s, q) => s + q, 0) },
 
@@ -131,18 +133,12 @@ export const useCartStore = create<CartStore>()(
         const { items, qty } = get()
         return items.reduce((s, i) => s + i.price * (qty[i.id] ?? 0), 0)
       },
-
-      grandTotal() {
-        const { fittingSelection } = get()
-        return get().subtotal() + (fittingSelection?.totalFittingCost ?? 0)
-      },
     }),
     {
       name: 'tyrevault-cart-v2',
       partialize: (state) => ({
-        items:            state.items,
-        qty:              state.qty,
-        fittingSelection: state.fittingSelection,
+        items: state.items,
+        qty:   state.qty,
       }),
     }
   )

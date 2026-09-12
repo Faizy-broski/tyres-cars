@@ -2,16 +2,16 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { Copy, ChevronRight, MoreVertical } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Copy, MoreVertical, Trash2 } from 'lucide-react'
 import type {
-  OrderDetail, OrderItem, OrderShipment,
-  PaymentStatus, OrderStatus, OrderShipmentStatus,
+  OrderDetail,
+  PaymentStatus, OrderStatus,
 } from '@/types/admin.types'
-import FulfillmentModal from './FulfillmentModal'
-import MarkShippedModal from './MarkShippedModal'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import {
+  Dialog, DialogContent, DialogTitle, DialogClose,
+} from '@/components/ui/dialog'
 import { toastSuccess, toastError } from '@/lib/toast'
 import {
   Select,
@@ -104,219 +104,6 @@ const ORDER_STATUS_OPTIONS: StatusOption[] = [
   { value: 'refunded',   label: 'Refunded',   cls: 'border-zinc-200 bg-zinc-100 text-zinc-600' },
 ]
 
-function deriveOrderStatus(orderStatus: string) {
-  if (orderStatus === 'fulfilled')  return { value: 'complete',    label: 'Complete',          cls: 'border-green-200 bg-green-50 text-green-700' }
-  if (orderStatus === 'processing') return { value: 'in_progress', label: 'In Progress',       cls: 'border-amber-200 bg-amber-50 text-amber-700' }
-  if (orderStatus === 'unpaid' || orderStatus === 'pending') return { value: 'awaiting', label: 'Awaiting Payment', cls: 'border-amber-200 bg-amber-50 text-amber-700' }
-  if (orderStatus === 'cancelled')  return { value: 'cancelled',   label: 'Cancelled',         cls: 'border-red-200 bg-red-50 text-red-700' }
-  return { value: 'in_progress', label: 'In Progress', cls: 'border-amber-200 bg-amber-50 text-amber-700' }
-}
-
-// ── Fitment progress stepper ────────────────────────────────────────────────
-
-const FITMENT_STEPS = [
-  'Booking Created',
-  'Customer Notified',
-  'Tyres Dispatched',
-  'Arrived at Center',
-  'Fitment Complete',
-]
-
-function fitmentStepsDone(status: string | undefined) {
-  switch (status) {
-    case 'pending':     return 1
-    case 'assigned':    return 1
-    case 'accepted':    return 2
-    case 'in_progress': return 2
-    case 'completed':   return 5
-    case 'cancelled':   return 0
-    default:            return 1
-  }
-}
-
-function FitmentProgressBar({ status }: { status: string | undefined }) {
-  const done      = fitmentStepsDone(status)
-  const cancelled = status === 'cancelled'
-
-  return (
-    <div className="mt-4 rounded-lg border border-zinc-200 bg-zinc-50 p-5">
-      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-4">Fitment Progress</p>
-      <div className="flex items-center">
-        {FITMENT_STEPS.map((step, idx) => {
-          const stepNum  = idx + 1
-          const complete = !cancelled && stepNum <= done
-          const isLast   = idx === FITMENT_STEPS.length - 1
-          return (
-            <div key={step} className="flex items-center flex-1 last:flex-none">
-              <div className="flex flex-col items-center">
-                <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${
-                  cancelled   ? 'border-zinc-300 bg-white' :
-                  complete    ? 'border-green-500 bg-green-500' :
-                               'border-zinc-300 bg-white'
-                }`} />
-                <p className={`mt-2 text-xs text-center whitespace-nowrap ${complete ? 'text-zinc-700 font-medium' : 'text-zinc-400'}`}>
-                  {step}
-                </p>
-              </div>
-              {!isLast && (
-                <div className={`h-0.5 flex-1 mx-2 mb-5 ${!cancelled && stepNum < done ? 'bg-green-500' : 'bg-zinc-200'}`} />
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-// ── Unfulfilled items ──────────────────────────────────────────────────────
-
-function UnfulfilledItems({
-  items, unfulfilledQty, onFulfill,
-}: {
-  items: OrderItem[]
-  unfulfilledQty: Record<string, number>
-  onFulfill: () => void
-}) {
-  const unfulfilled = items.filter(i => (unfulfilledQty[i.order_item_id] ?? 0) > 0)
-  if (unfulfilled.length === 0) return null
-  return (
-    <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-sm font-semibold text-amber-800">Unfulfilled Items</p>
-        <Button
-          type="button"
-          onClick={onFulfill}
-          className="rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-zinc-900 hover:bg-primary/90 h-auto"
-        >
-          Fulfill items
-        </Button>
-      </div>
-      <Table className="w-full text-sm">
-        <TableHeader>
-          <TableRow className="border-b border-amber-200 hover:bg-transparent">
-            {['SKU', 'Size', 'Unfulfilled'].map(h => (
-              <TableHead key={h} className="pb-2 text-left text-xs font-medium text-amber-700 h-auto px-0 py-2">{h}</TableHead>
-            ))}
-          </TableRow>
-        </TableHeader>
-        <TableBody className="divide-y divide-amber-100">
-          {unfulfilled.map(item => (
-            <TableRow key={item.order_item_id} className="hover:bg-transparent border-amber-100">
-              <TableCell className="py-2 font-mono text-xs text-zinc-600 px-0">{item.skus?.sku ?? '—'}</TableCell>
-              <TableCell className="py-2 text-zinc-700 text-xs px-0">{item.skus?.tyre_size_display ?? '—'}</TableCell>
-              <TableCell className="py-2 text-zinc-600 px-0">{unfulfilledQty[item.order_item_id] ?? 0}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  )
-}
-
-// ── Shipment card ─────────────────────────────────────────────────────────
-
-function ShipmentCard({ shipment, orderId, onMarkShipped, onMarkDelivered, token }: {
-  shipment: OrderShipment; orderId: string
-  onMarkShipped: (s: OrderShipment) => void
-  onMarkDelivered: (id: string) => void
-  token: string
-}) {
-  const [delivering, setDelivering] = useState(false)
-
-  async function handleDeliver() {
-    setDelivering(true)
-    try {
-      const res = await fetch(
-        `${API}/api/admin/orders/${orderId}/shipments/${shipment.shipment_id}/delivered`,
-        { method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' }
-      )
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}))
-        throw new Error(body.error ?? `Failed to mark delivered (${res.status})`)
-      }
-      toastSuccess('Shipment marked as delivered')
-      onMarkDelivered(shipment.shipment_id)
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to mark as delivered')
-    } finally { setDelivering(false) }
-  }
-
-  const statusCls: Record<OrderShipmentStatus, string> = {
-    awaiting_shipping: 'bg-amber-50 text-amber-700 border-amber-200',
-    shipped:           'bg-indigo-50 text-indigo-700 border-indigo-200',
-    delivered:         'bg-green-50 text-green-700 border-green-200',
-    cancelled:         'bg-zinc-100 text-zinc-600 border-zinc-200',
-  }
-
-  return (
-    <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100">
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-zinc-900">Shipment #{shipment.shipment_number}</span>
-          <Badge
-            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium h-auto ${statusCls[shipment.status] ?? 'bg-zinc-100 text-zinc-600 border-zinc-200'}`}
-          >
-            {shipment.status.replace(/_/g, ' ')}
-          </Badge>
-          {shipment.warehouses && <span className="text-xs text-zinc-500">{shipment.warehouses.warehouse_name}</span>}
-        </div>
-        <div className="flex gap-2">
-          {shipment.status === 'awaiting_shipping' && (
-            <Button
-              type="button"
-              onClick={() => onMarkShipped(shipment)}
-              className="rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 h-auto"
-            >
-              Mark as shipped
-            </Button>
-          )}
-          {shipment.status === 'shipped' && (
-            <Button
-              type="button"
-              onClick={handleDeliver}
-              disabled={delivering}
-              className="rounded-md bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 h-auto"
-            >
-              {delivering ? 'Marking...' : 'Mark as delivered'}
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="p-4 space-y-3">
-        {shipment.order_shipment_items.length > 0 && (
-          <div className="rounded-lg border border-zinc-100 divide-y divide-zinc-100">
-            {shipment.order_shipment_items.map(item => (
-              <div key={item.id || item.order_item_id} className="flex items-center justify-between px-3 py-2">
-                <div>
-                  <p className="text-xs font-medium text-zinc-800">{item.skus?.tyre_size_display ?? '—'}</p>
-                  {item.skus?.sku && <p className="text-xs text-zinc-400 font-mono">{item.skus.sku}</p>}
-                </div>
-                <span className="text-xs text-zinc-500">{item.quantity}×</span>
-              </div>
-            ))}
-          </div>
-        )}
-        {(shipment.tracking_number || shipment.shipped_at) && (
-          <div className="flex gap-6 text-xs text-zinc-500">
-            {shipment.tracking_number && (
-              <span>
-                Tracking:{' '}
-                {shipment.tracking_uri
-                  ? <a href={shipment.tracking_uri} target="_blank" rel="noopener noreferrer" className="font-mono text-primary hover:underline">{shipment.tracking_number}</a>
-                  : <span className="font-mono text-zinc-700">{shipment.tracking_number}</span>
-                }
-              </span>
-            )}
-            {shipment.shipped_at && <span>Shipped {fmtDate(shipment.shipped_at)}</span>}
-            {shipment.delivered_at && <span>Delivered {fmtDate(shipment.delivered_at)}</span>}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 // ── Main component ─────────────────────────────────────────────────────────
 
 export default function OrderDetailClient({
@@ -325,8 +112,6 @@ export default function OrderDetailClient({
   order: OrderDetail; accessToken: string
 }) {
   const router      = useRouter()
-  const searchParams = useSearchParams()
-  const pathname    = usePathname()
 
   const [order, setOrder]             = useState<OrderDetail>(initialOrder)
   const [statusSaving, setStatusSaving] = useState(false)
@@ -335,15 +120,8 @@ export default function OrderDetailClient({
   const [notesDirty,   setNotesDirty]   = useState(false)
   const [notesSaving,  setNotesSaving]  = useState(false)
 
-  const modal       = searchParams.get('modal')
-  const shipmentIdParam = searchParams.get('shipment')
-
-  const showFulfill = modal === 'fulfill'
-  const shipToMark  = modal === 'shipped' && shipmentIdParam
-    ? order.order_shipments.find(s => s.shipment_id === shipmentIdParam) ?? null
-    : null
-
-  function closeModal() { router.replace(pathname) }
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleting,   setDeleting]   = useState(false)
 
   async function patchStatus(patch: { paymentStatus?: string; orderStatus?: string }) {
     setStatusSaving(true)
@@ -363,18 +141,6 @@ export default function OrderDetailClient({
     } catch (err: unknown) {
       toastError(err instanceof Error ? err.message : 'Failed to update status')
     } finally { setStatusSaving(false) }
-  }
-
-  function handleMarkDelivered(shipmentId: string) {
-    setOrder(prev => ({
-      ...prev,
-      order_shipments: prev.order_shipments.map(s =>
-        s.shipment_id === shipmentId
-          ? { ...s, status: 'delivered' as OrderShipmentStatus, delivered_at: new Date().toISOString() }
-          : s
-      ),
-      order_status: 'fulfilled' as OrderStatus,
-    }))
   }
 
   async function saveNotes() {
@@ -397,25 +163,28 @@ export default function OrderDetailClient({
     } finally { setNotesSaving(false) }
   }
 
-  // Compute unfulfilled qty per order_item_id
-  const fulfilledQtyMap = new Map<string, number>()
-  for (const shipment of order.order_shipments) {
-    if (shipment.status === 'cancelled') continue
-    for (const si of shipment.order_shipment_items) {
-      fulfilledQtyMap.set(si.order_item_id, (fulfilledQtyMap.get(si.order_item_id) ?? 0) + si.quantity)
+  async function handleDelete() {
+    setDeleting(true)
+    try {
+      const res = await fetch(`${API}/api/admin/orders/${order.order_id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? 'Failed to delete order')
+      }
+      toastSuccess('Order deleted')
+      router.push('/admin/orders')
+    } catch (err: unknown) {
+      toastError(err instanceof Error ? err.message : 'Failed to delete order')
+      setDeleting(false)
     }
   }
-  const unfulfilledQty: Record<string, number> = Object.fromEntries(
-    order.order_items.map(item => [
-      item.order_item_id,
-      Math.max(0, item.quantity - (fulfilledQtyMap.get(item.order_item_id) ?? 0)),
-    ])
-  )
 
   const c       = order.customers
   const addr    = order.shipping_address_snapshot
   const billing = order.billing_address_snapshot
-  const isFitment = !!order.fitment_id
 
   const fullName = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email : '—'
 
@@ -459,6 +228,15 @@ export default function OrderDetailClient({
             onChange={val => patchStatus({ orderStatus: val })}
             loading={statusSaving}
           />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setShowDelete(true)}
+            className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            <Trash2 className="w-4 h-4 mr-1.5" />
+            Delete
+          </Button>
         </div>
       </div>
 
@@ -516,10 +294,7 @@ export default function OrderDetailClient({
                 <span>{fmtCurrency(order.order_items.reduce((s, i) => s + i.quantity * i.unit_price, 0), order.currency)}</span>
               </div>
               <div className="flex justify-between text-sm text-zinc-500">
-                <span className="flex items-center gap-1">
-                  Shipping
-                  <ChevronRight className="w-3 h-3" />
-                </span>
+                <span>Shipping</span>
                 <span>{fmtCurrency(order.shipping_cost, order.currency)}</span>
               </div>
               <div className="flex justify-between text-sm text-zinc-500">
@@ -538,90 +313,6 @@ export default function OrderDetailClient({
               </div>
             </div>
           </div>
-
-          {/* Unfulfilled items */}
-          <UnfulfilledItems
-            items={order.order_items}
-            unfulfilledQty={unfulfilledQty}
-            onFulfill={() => router.push(`${pathname}?modal=fulfill`)}
-          />
-
-          {/* Delivery Type section */}
-          <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-              <h2 className="text-sm font-semibold text-zinc-900">Delivery Type</h2>
-              {isFitment ? (
-                <Link href={`/admin/fitters/${order.fitment_id}`}>
-                  <Badge className="rounded-lg bg-primary text-zinc-900 px-3 py-1 text-xs font-medium h-auto hover:bg-primary/80 transition-colors cursor-pointer">
-                    Fitment Center {order.fitment_job?.task_number ?? order.fitment_id?.slice(0, 8).toUpperCase()}
-                  </Badge>
-                </Link>
-              ) : (
-                <Badge className="rounded-lg bg-zinc-100 text-zinc-700 px-3 py-1 text-xs font-medium h-auto">
-                  Home Delivery
-                </Badge>
-              )}
-            </div>
-
-            <div className="p-5">
-              {isFitment && order.fitment_job ? (
-                <>
-                  <div className="grid grid-cols-1 gap-4 mb-4 sm:grid-cols-3">
-                    <div>
-                      <p className="text-xs text-zinc-400 mb-1">Fitment ID</p>
-                      <p className="text-sm font-medium text-zinc-800">{order.fitment_job.task_number}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-400 mb-1">Center</p>
-                      {order.fitment_id ? (
-                        <Link href={`/admin/fitters/${order.fitment_id}`} className="text-sm font-medium text-primary hover:underline">
-                          {order.fitment_job.fitment_centres?.business_name ?? '—'}
-                        </Link>
-                      ) : (
-                        <p className="text-sm font-medium text-zinc-800">{order.fitment_job.fitment_centres?.business_name ?? '—'}</p>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-xs text-zinc-400 mb-1">Scheduled Date</p>
-                      <p className="text-sm font-medium text-zinc-800">
-                        {order.fitment_job.scheduled_date
-                          ? `${fmtDate(order.fitment_job.scheduled_date)}${order.fitment_job.scheduled_time ? ` — ${order.fitment_job.scheduled_time}` : ''}`
-                          : '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <FitmentProgressBar status={order.fitment_job.job_status} />
-                </>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  {order.order_shipments.slice(0, 1).map(s => (
-                    <div key={s.shipment_id}>
-                      <p className="text-xs text-zinc-400 mb-1">Warehouse</p>
-                      <p className="text-sm font-medium text-zinc-800">{s.warehouses?.warehouse_name ?? '—'}</p>
-                    </div>
-                  ))}
-                  {order.order_shipments[0]?.tracking_number && (
-                    <div>
-                      <p className="text-xs text-zinc-400 mb-1">Tracking</p>
-                      <p className="text-sm font-medium text-zinc-800">{order.order_shipments[0].tracking_number}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Shipment cards */}
-          {!isFitment && order.order_shipments.map(s => (
-            <ShipmentCard
-              key={s.shipment_id}
-              shipment={s}
-              orderId={order.order_id}
-              onMarkShipped={ship => router.push(`${pathname}?modal=shipped&shipment=${ship.shipment_id}`)}
-              onMarkDelivered={handleMarkDelivered}
-              token={accessToken}
-            />
-          ))}
 
           {/* Payments */}
           {order.order_payments.length > 0 && (
@@ -807,46 +498,28 @@ export default function OrderDetailClient({
         </div>
       </div>
 
-      {/* Modals */}
-      {showFulfill && (
-        <FulfillmentModal
-          orderId={order.order_id}
-          items={order.order_items}
-          unfulfilledQty={unfulfilledQty}
-          token={accessToken}
-          onClose={closeModal}
-          onSuccess={newShipment => {
-            closeModal()
-            setOrder(prev => ({
-              ...prev,
-              order_shipments: [...prev.order_shipments, newShipment],
-              order_status: 'processing' as OrderStatus,
-            }))
-          }}
-        />
-      )}
-
-      {shipToMark && (
-        <MarkShippedModal
-          orderId={order.order_id}
-          shipment={shipToMark}
-          token={accessToken}
-          onClose={closeModal}
-          onSuccess={(shipmentId, trackingNumber, trackingUri) => {
-            closeModal()
-            setOrder(prev => ({
-              ...prev,
-              order_shipments: prev.order_shipments.map(s =>
-                s.shipment_id === shipmentId
-                  ? { ...s, status: 'shipped' as OrderShipmentStatus, tracking_number: trackingNumber ?? null, tracking_uri: trackingUri ?? null, shipped_at: new Date().toISOString() }
-                  : s
-              ),
-              order_status: 'processing' as OrderStatus,
-            }))
-          }}
-        />
-      )}
+      {/* Delete confirmation */}
+      <Dialog open={showDelete} onOpenChange={o => !o && !deleting && setShowDelete(false)}>
+        <DialogContent className="rounded-2xl shadow-xl ring-0 bg-white sm:max-w-sm" showCloseButton={false}>
+          <DialogTitle className="text-base font-semibold text-zinc-900">Delete Order</DialogTitle>
+          <p className="text-sm text-zinc-600">
+            Are you sure you want to delete order <strong>#{order.order_number}</strong>? This cannot be undone.
+          </p>
+          <div className="flex gap-3 justify-end">
+            <DialogClose asChild>
+              <Button type="button" variant="outline" disabled={deleting}>Cancel</Button>
+            </DialogClose>
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              {deleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
-

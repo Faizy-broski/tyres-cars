@@ -26,8 +26,7 @@ export default function StorefrontHeader() {
             <Link href="/tyres"   className="hover:text-zinc-900 transition-colors">Shop Tyres</Link>
             <Link href="/tyres?application_type=4x4" className="hover:text-zinc-900 transition-colors">4×4 / SUV</Link>
             <Link href="/tyres?application_type=TBR" className="hover:text-zinc-900 transition-colors">Truck</Link>
-            <Link href="/promotions" className="hover:text-zinc-900 transition-colors">Deals & Offers</Link>
-            <Link href="/fitter/onboarding" className="hover:text-zinc-900 transition-colors">Become a Fitter</Link>
+            <Link href="/contact" className="hover:text-zinc-900 transition-colors">Contact</Link>
           </nav>
 
           <div className="flex items-center gap-2">

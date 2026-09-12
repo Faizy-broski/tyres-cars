@@ -5,41 +5,27 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { toastPromise, toastError } from '@/lib/toast'
 import { Trash2, ExternalLink } from 'lucide-react'
-import type { CustomerListItem, CustomerType, AccountStatus } from '@/types/admin.types'
+import type { CustomerListItem } from '@/types/admin.types'
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export type CustomerFormState = {
-  email:            string
-  firstName:        string
-  lastName:         string
-  company:          string
-  phone:            string
-  customerType:     CustomerType
-  accountStatus:    AccountStatus
-  customerGroupId:  string
-  creditLimit:      string
-  paymentTerms:     string
+  email:     string
+  firstName: string
+  lastName:  string
+  phone:     string
 }
 
 export const EMPTY_CUSTOMER_FORM: CustomerFormState = {
-  email: '', firstName: '', lastName: '', company: '', phone: '',
-  customerType: 'retail', accountStatus: 'active', customerGroupId: '',
-  creditLimit: '', paymentTerms: '',
+  email: '', firstName: '', lastName: '', phone: '',
 }
 
 export function customerToForm(c: CustomerListItem): CustomerFormState {
   return {
-    email:           c.email ?? '',
-    firstName:       c.first_name ?? '',
-    lastName:        c.last_name ?? '',
-    company:         c.business_name ?? '',
-    phone:           c.phone ?? '',
-    customerType:    c.customer_type ?? 'retail',
-    accountStatus:   c.account_status ?? 'active',
-    customerGroupId: c.customer_group_id ?? '',
-    creditLimit:     c.credit_limit != null ? String(c.credit_limit) : '',
-    paymentTerms:    c.payment_terms ?? '',
+    email:     c.email ?? '',
+    firstName: c.first_name ?? '',
+    lastName:  c.last_name ?? '',
+    phone:     c.phone ?? '',
   }
 }
 
@@ -47,22 +33,13 @@ export function customerToForm(c: CustomerListItem): CustomerFormState {
  *  so a save can be spliced straight into the list instantly instead of waiting on a second
  *  network round-trip just to re-learn values we already have. */
 export function formToCustomerPatch(form: CustomerFormState): Partial<CustomerListItem> {
-  const showCreditFields = ['wholesale', 'fleet', 'trade'].includes(form.customerType)
   return {
-    email:              form.email,
-    first_name:         form.firstName || null,
-    last_name:          form.lastName || null,
-    business_name:      form.company || null,
-    phone:              form.phone || null,
-    customer_type:      form.customerType,
-    account_status:     form.accountStatus,
-    customer_group_id:  form.customerGroupId || null,
-    credit_limit:       showCreditFields && form.creditLimit ? Number(form.creditLimit) : null,
-    payment_terms:      showCreditFields && form.paymentTerms ? form.paymentTerms : null,
+    email:      form.email,
+    first_name: form.firstName || null,
+    last_name:  form.lastName || null,
+    phone:      form.phone || null,
   }
 }
-
-type GroupOption = { group_id: string; group_name: string }
 
 async function getToken() {
   const { data: { session } } = await createClient().auth.getSession()
@@ -82,7 +59,6 @@ interface Props {
 export function CustomerFormPanel({ mode, customerId, initial, onSaved, onRequestDelete }: Props) {
   const isEdit = mode === 'edit'
   const [form, setForm]     = useState<CustomerFormState>(initial)
-  const [groups, setGroups] = useState<GroupOption[]>([])
   const [saving, setSaving] = useState(false)
 
   // Re-sync when a fresh record is loaded into this same panel instance — e.g. right after saving
@@ -90,22 +66,9 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
   // so without this the form would keep showing pre-save values instead of the canonical saved data.
   useEffect(() => { setForm(initial) }, [initial])
 
-  useEffect(() => {
-    let cancelled = false
-    getToken().then(tok => {
-      fetch(`${API}/api/admin/customers/groups/list?page=1`, { headers: { Authorization: `Bearer ${tok}` } })
-        .then(r => r.json())
-        .then(d => { if (!cancelled) setGroups(d.groups ?? []) })
-        .catch(() => {})
-    })
-    return () => { cancelled = true }
-  }, [])
-
   function set<K extends keyof CustomerFormState>(key: K, val: CustomerFormState[K]) {
     setForm(prev => ({ ...prev, [key]: val }))
   }
-
-  const showCreditFields = ['wholesale', 'fleet', 'trade'].includes(form.customerType)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -116,19 +79,10 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
     const tok = await getToken()
 
     const body = {
-      email:           form.email.trim(),
-      firstName:       form.firstName       || null,
-      lastName:        form.lastName        || null,
-      company:         form.company         || null,
-      phone:           form.phone           || null,
-      customerType:    form.customerType    || 'retail',
-      accountStatus:   form.accountStatus   || 'active',
-      customerGroupId: form.customerGroupId || null,
-      // Credit fields are hidden (not deleted) when the type isn't credit-eligible — clear
-      // them explicitly on submit so switching a customer to e.g. Retail doesn't silently
-      // keep stale credit data that's no longer visible anywhere in the UI.
-      creditLimit:     showCreditFields && form.creditLimit ? Number(form.creditLimit) : null,
-      paymentTerms:    showCreditFields && form.paymentTerms ? form.paymentTerms : null,
+      email:     form.email.trim(),
+      firstName: form.firstName || null,
+      lastName:  form.lastName  || null,
+      phone:     form.phone     || null,
     }
 
     let saved: { customer_id?: string } | undefined
@@ -205,54 +159,9 @@ export function CustomerFormPanel({ mode, customerId, initial, onSaved, onReques
             </div>
           </div>
           <div>
-            <label className={lbl}>Company</label>
-            <input type="text" value={form.company} onChange={e => set('company', e.target.value)} className={inp} />
-          </div>
-          <div>
             <label className={lbl}>Phone</label>
             <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} className={inp} />
           </div>
-
-          <div className="pt-3 border-t border-zinc-100 grid grid-cols-2 gap-3">
-            <div>
-              <label className={lbl}>Customer Type</label>
-              <select value={form.customerType} onChange={e => set('customerType', e.target.value as CustomerType)} className={inp}>
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="fleet">Fleet</option>
-                <option value="trade">Trade</option>
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Account Status</label>
-              <select value={form.accountStatus} onChange={e => set('accountStatus', e.target.value as AccountStatus)} className={inp}>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="blocked">Blocked</option>
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className={lbl}>Customer Group</label>
-            <select value={form.customerGroupId} onChange={e => set('customerGroupId', e.target.value)} className={inp}>
-              <option value="">— None —</option>
-              {groups.map(g => <option key={g.group_id} value={g.group_id}>{g.group_name}</option>)}
-            </select>
-          </div>
-
-          {showCreditFields && (
-            <div className="pt-3 border-t border-zinc-100 grid grid-cols-2 gap-3">
-              <div>
-                <label className={lbl}>Credit Limit</label>
-                <input type="number" min={0} value={form.creditLimit} onChange={e => set('creditLimit', e.target.value)} placeholder="0.00" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Payment Terms</label>
-                <input type="text" value={form.paymentTerms} onChange={e => set('paymentTerms', e.target.value)} placeholder="e.g. Net 30" className={inp} />
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="px-5 py-4 border-t border-zinc-200 bg-white shrink-0">

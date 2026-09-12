@@ -35,36 +35,26 @@ export default function InquiryModal({
     }
     setSubmitting(true)
     try {
-      const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-      console.log('[InquiryModal] submitting to', `${API}/api/product-inquiry`, { productId, sku })
-      const res = await fetch(`${API}/api/product-inquiry`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name, email, phone: phone || undefined, message: message || undefined,
-          product_id: productId,
-          sku,
-          product_name: productName,
-          tyre_size_display: tyreSizeDisplay,
-          product_url: productUrl,
-        }),
-      })
-      console.log('[InquiryModal] response status', res.status, res.ok)
-      if (!res.ok) {
-        const body = await res.text().catch(() => '')
-        console.error('[InquiryModal] request failed', res.status, body)
-        throw new Error('Failed to submit inquiry')
-      }
+      const lines = [
+        `Name: ${name}`,
+        `Email: ${email}`,
+        phone ? `Phone: ${phone}` : null,
+        `Product: ${productName || sku} (SKU ${sku})`,
+        tyreSizeDisplay ? `Size: ${tyreSizeDisplay}` : null,
+        productUrl ? `Link: ${productUrl}` : null,
+        message ? `\n${message}` : null,
+      ].filter(Boolean).join('\n')
 
-      const json = await res.json().catch(() => null)
-      console.log('[InquiryModal] response body', json)
+      const subject = encodeURIComponent(`Product inquiry: ${productName || sku}`)
+      const body    = encodeURIComponent(lines)
+      window.location.href = `mailto:support@tyrevault.com.au?subject=${subject}&body=${body}`
 
-      toastSuccess('Inquiry sent', "We'll get back to you shortly.")
+      toastSuccess('Opening your email app', "Send the message and we'll get back to you shortly.")
       setName(''); setEmail(''); setPhone(''); setMessage('')
       setOpen(false)
     } catch (err) {
       console.error('[InquiryModal] submit error', err)
-      toastError('Something went wrong', 'Please try again or email support@tyrevault.com.au directly.')
+      toastError('Something went wrong', 'Please email support@tyrevault.com.au directly.')
     } finally {
       setSubmitting(false)
     }

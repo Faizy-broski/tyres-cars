@@ -1,18 +1,18 @@
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Disc3, Gauge, Sparkles, MapPin, ShieldCheck, Wrench } from 'lucide-react'
+import { Disc3, Gauge, Sparkles, ShieldCheck, Wrench } from 'lucide-react'
 
 export const metadata: Metadata = {
   title: 'Services',
-  description: 'Tyre fitting, wheel alignment, balancing, mobile fitting and car valeting — explore the services Tyres & Car Valeting offers.',
+  description: 'Tyre fitting, wheel alignment, balancing and car valeting — explore the services Tyres & Car Valeting offers.',
 }
 
 const services = [
   {
     icon: Disc3,
     title: 'Tyre Fitting',
-    desc: 'Professional fitting at checkout — pick a certified fitter near you or your preferred workshop.',
+    desc: 'Professional tyre fitting carried out by our experienced team.',
   },
   {
     icon: Gauge,
@@ -23,11 +23,6 @@ const services = [
     icon: Wrench,
     title: 'Wheel Balancing',
     desc: 'Smooth out vibrations and protect your suspension with accurate computerised wheel balancing.',
-  },
-  {
-    icon: MapPin,
-    title: 'Mobile Fitting',
-    desc: 'Can\'t make it to a workshop? Our mobile fitters come to your home or office at a time that suits you.',
   },
   {
     icon: Sparkles,
@@ -43,7 +38,7 @@ const services = [
 
 const steps = [
   { id: '01', title: 'Choose Your Service', desc: 'Browse tyres or select a valeting package that fits your vehicle and needs.' },
-  { id: '02', title: 'Pick A Time & Place', desc: 'Book a fitter or valeting slot — in-store, at a partner workshop, or mobile at your location.' },
+  { id: '02', title: 'Order Online', desc: 'Add to cart, enter your delivery address, and pay securely at checkout.' },
   { id: '03', title: 'Sit Back & Relax', desc: 'Our certified team handles the rest, so you drive away safe, sorted, and spotless.' },
 ]
 
@@ -67,7 +62,7 @@ export default function ServicesPage() {
             Services That <span className="text-primary">Keep You Moving</span>
           </h1>
           <p className="mt-5 text-lg text-zinc-300 md:text-xl">
-            From tyre fitting to full car valeting, our certified network has you covered end to end.
+            From tyre fitting to full car valeting, our team has you covered end to end.
           </p>
         </div>
       </section>

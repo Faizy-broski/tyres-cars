@@ -10,7 +10,6 @@ import BasicInfoTab from './tabs/BasicInfoTab'
 import CategoriesTab from './tabs/CategoriesTab'
 // import EditVariantsTab from './tabs/EditVariantsTab' // VARIANTS DISABLED (multi-row table)
 import ProductSpecsTab from './tabs/ProductSpecsTab'
-import PricingTab from './tabs/PricingTab'
 import { cn } from '@/lib/utils/cn'
 import { Button } from '@/components/ui/button'
 import { toastSuccess, toastError } from '@/lib/toast'
@@ -39,14 +38,13 @@ interface Props {
   brands:      { brand_id: string; brand_name: string }[]
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
-  warehouses:  { warehouse_id: string; warehouse_name: string }[]
   patterns?:   { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
 export default function EditProductWizard({
-  patternId, initialData, existingSkus, brands, collections, categories, warehouses, patterns = [],
+  patternId, initialData, existingSkus, brands, collections, categories, patterns = [],
 }: Props) {
   const router      = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
@@ -166,7 +164,6 @@ export default function EditProductWizard({
               costPrice:      p.costPrice,
               inventory:      p.inventory      ?? 0,
               lowStockAlert:  p.lowStockAlert  ?? 10,
-              warehouseId:    p.warehouseId,
             },
           }),
         })

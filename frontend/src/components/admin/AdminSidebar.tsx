@@ -8,19 +8,9 @@ import Image from "next/image";
 import {
   ClipboardList,
   LayoutDashboard,
-  Truck,
-  Archive,
   Users,
-  Tag,
-  CircleDollarSign,
-  Wrench,
   Gauge,
   X,
-  ShoppingCart,
-  PackageOpen,
-  CircleDot,
-  Car,
-  Ship,
   ChevronRight,
   LogOut,
   PanelLeftClose,
@@ -33,7 +23,6 @@ import {
   prefetchOrdersPage,
   prefetchCustomersPage,
   prefetchProductsPage,
-  prefetchSuppliersPage,
 } from "@/lib/query/hooks";
 
 const nav = [
@@ -46,32 +35,9 @@ const nav = [
       { label: "Patterns",    href: "/admin/products/patterns" },
       // { label: "Collection",  href: "/admin/products/collections" },
       { label: "Categories",  href: "/admin/products/categories" },
-      { label: "Warehouses",  href: "/admin/warehouses" },
     ],
   },
-  { label: "Suppliers",       href: "/admin/suppliers",        icon: Truck },
-  { label: "Inventory",       href: "/admin/inventory",        icon: Archive },
-  {
-    label: "Customers", href: "/admin/customers", icon: Users,
-    children: [{ label: "Customer Groups", href: "/admin/customers/groups" }],
-  },
-  { label: "Promotions",      href: "/admin/promotions",       icon: Tag },
- // { label: "Price Lists",     href: "/admin/pricing",          icon: CircleDollarSign },
-  { label: "Purchase Orders", href: "/admin/purchase-orders",  icon: ShoppingCart },
-  { label: "Shipments",       href: "/admin/shipments",        icon: PackageOpen },
-  {
-    label: "Wheels", href: "/admin/wheels", icon: CircleDot,
-    children: [{ label: "Brands", href: "/admin/wheels/brands" }],
-  },
-  { label: "Vehicles",        href: "/admin/vehicles",         icon: Car },
-  { label: "Shipping Methods",href: "/admin/shipping-methods", icon: Ship },
-  {
-    label: "Fitment Center", href: "/admin/fitters", icon: Wrench, noNav: true,
-    children: [
-      { label: "Applications",       href: "/admin/fitters/applications" },
-      { label: "Registered Centres", href: "/admin/fitters/centres" },
-    ],
-  },
+  { label: "Customers", href: "/admin/customers", icon: Users },
 ];
 
 interface Props {
@@ -93,7 +59,6 @@ export default function AdminSidebar({ userEmail, isOpen = false, onClose, colla
     '/admin/orders':    prefetchOrdersPage,
     '/admin/customers': prefetchCustomersPage,
     '/admin/products':  prefetchProductsPage,
-    '/admin/suppliers': prefetchSuppliersPage,
   }
 
   function schedulePrefetch(href: string) {

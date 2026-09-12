@@ -16,7 +16,6 @@ type Meta = {
 
 export default function NewProductPage() {
   const [meta, setMeta]           = useState<Meta>({ brands: [], collections: [], categories: [], patterns: [] })
-  const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading]     = useState(true)
 
   useEffect(() => { document.title = 'New Product | Tyres & Car Valeting' }, [])
@@ -28,19 +27,14 @@ export default function NewProductPage() {
         const { data: { session } } = await createClient().auth.getSession()
         const tok = session?.access_token ?? ''
         const headers = { Authorization: `Bearer ${tok}` }
-        const [metaRes, whRes] = await Promise.all([
-          fetch(`${API}/api/admin/products/meta`, { headers }),
-          fetch(`${API}/api/admin/orders/warehouses`, { headers }),
-        ])
+        const metaRes = await fetch(`${API}/api/admin/products/meta`, { headers })
         if (!metaRes.ok) {
           const body = await metaRes.json().catch(() => ({}))
           throw new Error(body.error ?? `Failed to load product metadata (${metaRes.status})`)
         }
         const metaData: Meta = await metaRes.json()
-        const whData = whRes.ok ? await whRes.json().catch(() => []) : []
         if (!cancelled) {
           setMeta(metaData)
-          setWarehouses(Array.isArray(whData) ? whData : [])
         }
       } catch (err) {
         if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load form data')
@@ -65,7 +59,6 @@ export default function NewProductPage() {
       brands={meta.brands}
       collections={meta.collections}
       categories={meta.categories}
-      warehouses={warehouses}
       patterns={meta.patterns}
     />
   )

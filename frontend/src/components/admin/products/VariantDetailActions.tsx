@@ -19,15 +19,11 @@ const PRICE_TYPE_LABELS: Record<PriceType, string> = {
   special: 'Special', clearance: 'Clearance',
 }
 
-interface StockRow { warehouse_id: string; warehouse_name: string; available_stock: number }
-interface WarehouseOption { warehouse_id: string; warehouse_name: string }
-
 type EditRow = {
   _key: string
   price_id?: string
   price_type: PriceType
   price_inc_gst: number
-  warehouse_id: string | null
   start_date: string | null
   end_date: string | null
   is_active: boolean
@@ -38,7 +34,6 @@ function newEmptyRow(): EditRow {
     _key: `new-${Date.now()}-${Math.random()}`,
     price_type: 'retail',
     price_inc_gst: 0,
-    warehouse_id: null,
     start_date: null,
     end_date: null,
     is_active: true,
@@ -82,10 +77,9 @@ function PriceEditModal({
 }) {
   const [rows, setRows] = useState<EditRow[]>([])
   const [toDelete, setToDelete] = useState<Set<string>>(new Set())
-  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
   const [saving, setSaving] = useState(false)
 
-  // Initialise rows and fetch warehouses when modal opens
+  // Initialise rows when modal opens
   useEffect(() => {
     if (!open) return
     setRows(prices.map(p => ({
@@ -93,26 +87,11 @@ function PriceEditModal({
       price_id: p.price_id,
       price_type: p.price_type,
       price_inc_gst: p.price_inc_gst,
-      warehouse_id: p.warehouse_id,
       start_date: p.start_date,
       end_date: p.end_date,
       is_active: p.is_active,
     })))
     setToDelete(new Set())
-
-    async function fetchWarehouses() {
-      try {
-        const token = await getAdminToken()
-        const res = await fetch(`${API}/api/admin/orders/warehouses`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setWarehouses(Array.isArray(data) ? data : (data.data ?? []))
-        }
-      } catch { /* warehouses are optional */ }
-    }
-    fetchWarehouses()
   }, [open, prices])
 
   function updateRow(key: string, patch: Partial<EditRow>) {
@@ -151,7 +130,6 @@ function PriceEditModal({
           body: JSON.stringify({
             price_type:    row.price_type,
             price_inc_gst: row.price_inc_gst,
-            warehouse_id:  row.warehouse_id  || null,
             start_date:    row.start_date    || null,
             end_date:      row.end_date      || null,
             is_active:     row.is_active,
@@ -169,7 +147,6 @@ function PriceEditModal({
           body: JSON.stringify({
             price_type:    row.price_type,
             price_inc_gst: row.price_inc_gst,
-            warehouse_id:  row.warehouse_id  || null,
             start_date:    row.start_date    || null,
             end_date:      row.end_date      || null,
             is_active:     row.is_active,
@@ -242,19 +219,8 @@ function PriceEditModal({
               </button>
             </div>
 
-            {/* Row 2: warehouse + date range */}
+            {/* Row 2: date range */}
             <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={row.warehouse_id ?? ''}
-                onChange={e => updateRow(row._key, { warehouse_id: e.target.value || null })}
-                className="rounded border border-zinc-300 px-2 py-1 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary/40 flex-1 min-w-0"
-              >
-                <option value="">All warehouses</option>
-                {warehouses.map(w => (
-                  <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>
-                ))}
-              </select>
-
               <div className="flex items-center gap-1 text-xs text-zinc-500">
                 <span>From</span>
                 <input
@@ -294,93 +260,6 @@ function PriceEditModal({
         </Button>
       </div>
     </Modal>
-  )
-}
-
-// ── Edit Stock button + modal ──────────────────────────────────────────────
-
-export function VariantStockActions({
-  patternId,
-  variantId,
-  stocks,
-  onSuccess,
-}: {
-  patternId: string
-  variantId: string
-  stocks: StockRow[]
-  onSuccess?: () => void
-}) {
-  const [open, setOpen]   = useState(false)
-  const [saving, setSaving] = useState(false)
-
-  const initial: Record<string, number> = {}
-  for (const s of stocks) initial[s.warehouse_id] = s.available_stock
-  const [values, setValues] = useState(initial)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const token = await getAdminToken()
-      const results = await Promise.all(
-        Object.entries(values).map(([warehouseId, stock]) =>
-          fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/stock`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ warehouseId, availableStock: stock }),
-          })
-        )
-      )
-      const failed = results.find(r => !r.ok)
-      if (failed) throw new Error(`Error ${failed.status}`)
-      toastSuccess('Stock updated')
-      onSuccess?.()
-      setOpen(false)
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to update stock')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        Edit Stock
-      </Button>
-
-      <Modal title="Edit Stock Levels" open={open} onClose={() => setOpen(false)}>
-        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
-          <div className="overflow-y-auto flex-1 px-6 py-4 space-y-3">
-            {stocks.length === 0 ? (
-              <p className="text-sm text-zinc-400 italic">No warehouse locations configured.</p>
-            ) : (
-              stocks.map(s => (
-                <div key={s.warehouse_id} className="flex items-center gap-3">
-                  <span className="text-sm text-zinc-600 flex-1">{s.warehouse_name}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={values[s.warehouse_id] ?? s.available_stock}
-                    onChange={e => setValues(prev => ({ ...prev, [s.warehouse_id]: Number(e.target.value) }))}
-                    aria-label={`Stock at ${s.warehouse_name}`}
-                    className="w-24"
-                  />
-                </div>
-              ))
-            )}
-          </div>
-          <div className="flex justify-end gap-3 px-6 py-4 border-t border-zinc-100 shrink-0">
-            <DialogClose asChild>
-              <Button type="button" variant="outline">Cancel</Button>
-            </DialogClose>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
-    </>
   )
 }
 

@@ -29,11 +29,10 @@ type Props = {
   brands:      { brand_id: string; brand_name: string }[]
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
-  warehouses:  { warehouse_id: string; warehouse_name: string }[]
   patterns?:   { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
-export default function CreateProductWizard({ brands, collections, categories, warehouses, patterns = [] }: Props) {
+export default function CreateProductWizard({ brands, collections, categories, patterns = [] }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<TabKey>('basic')
   const [completedTabs, setCompletedTabs] = useState<Set<TabKey>>(new Set())
@@ -207,7 +206,7 @@ export default function CreateProductWizard({ brands, collections, categories, w
           {activeTab === 'basic'      && <BasicInfoTab autoSlug={autoSlug} brands={brands} patterns={patterns} onPatternApplied={setAppliedPattern} />}
           {activeTab === 'categories' && <CategoriesTab collections={collections} categories={categories} appliedPattern={appliedPattern} />}
           {activeTab === 'variants'   && <ProductSpecsTab />}
-          {activeTab === 'pricing'    && <PricingTab warehouses={warehouses} />}
+          {activeTab === 'pricing'    && <PricingTab />}
         </div>
 
         {/* Footer actions */}

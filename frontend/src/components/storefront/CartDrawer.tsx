@@ -1,11 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { X, Minus, Plus, ShoppingCart, Wrench, ChevronRight } from 'lucide-react'
+import { X, Minus, Plus, ShoppingCart } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
-import FitterSelectionModal from './FitterSelectionModal'
 
 function isAbsoluteUrl(url: string) {
   return url.startsWith('https://') || url.startsWith('http://')
@@ -15,18 +13,13 @@ export default function CartDrawer() {
   const {
     items, qty, isOpen, closeCart,
     removeItem, updateQuantity,
-    subtotal, itemCount, grandTotal,
-    fittingSelection, setFittingSelection,
+    subtotal, itemCount,
   } = useCartStore()
-
-  const [fitterModalOpen, setFitterModalOpen] = useState(false)
 
   if (!isOpen) return null
 
-  const count      = itemCount()
-  const tyresTotal = subtotal()
-  const total      = grandTotal()
-  const tyreQty    = count  // all items are tyres
+  const count = itemCount()
+  const total = subtotal()
 
   return (
     <>
@@ -136,79 +129,10 @@ export default function CartDrawer() {
         {/* Footer */}
         {items.length > 0 && (
           <div className="border-t border-zinc-100 px-5 py-4 space-y-3">
-            {/* Fitting section */}
-            {fittingSelection ? (
-              /* ── Selected fitting station ── */
-              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Wrench className="w-4 h-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-zinc-700 uppercase tracking-wide">Fitting Service</p>
-                      <p className="text-sm font-medium text-zinc-900 truncate">{fittingSelection.centreName}</p>
-                      {fittingSelection.address && (
-                        <p className="text-xs text-zinc-500 truncate">{fittingSelection.address}</p>
-                      )}
-                      {fittingSelection.wheelAlignment && (
-                        <p className="text-xs text-zinc-500">
-                          + {fittingSelection.wheelAlignment.type === '2_wheel' ? '2-Wheel' : fittingSelection.wheelAlignment.type === '4_wheel' ? '4-Wheel' : ''} Alignment
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="shrink-0 text-right">
-                    <p className="text-sm font-bold text-zinc-900">
-                      A${fittingSelection.totalFittingCost.toFixed(2)}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setFittingSelection(null)}
-                      className="text-[11px] text-red-500 hover:text-red-700 transition-colors mt-0.5"
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setFitterModalOpen(true)}
-                  className="mt-2 text-xs text-primary hover:underline"
-                >
-                  Change fitting partner
-                </button>
-              </div>
-            ) : (
-              /* ── "Need fitting?" banner ── */
-              <button
-                type="button"
-                onClick={() => setFitterModalOpen(true)}
-                className="w-full flex items-center justify-between rounded-xl border-2 border-dashed border-zinc-200 hover:border-primary hover:bg-primary/5 px-4 py-3 transition-colors group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                    <Wrench className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-zinc-800 group-hover:text-zinc-900">Need your tyres fitted?</p>
-                    <p className="text-xs text-zinc-400">Find a local fitting partner</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-zinc-400 group-hover:text-primary transition-colors" />
-              </button>
-            )}
-
             {/* Subtotal / Total */}
             <div className="space-y-1">
-              {fittingSelection && (
-                <div className="flex items-center justify-between text-sm text-zinc-600">
-                  <span>Tyres subtotal</span>
-                  <span>${tyresTotal.toFixed(2)}</span>
-                </div>
-              )}
               <div className="flex items-center justify-between">
-                <span className="text-sm text-zinc-600">
-                  {fittingSelection ? 'Total (excl. shipping)' : 'Subtotal'}
-                </span>
+                <span className="text-sm text-zinc-600">Subtotal</span>
                 <span className="text-base font-bold text-zinc-900">${total.toFixed(2)}</span>
               </div>
             </div>
@@ -233,14 +157,6 @@ export default function CartDrawer() {
           </div>
         )}
       </div>
-
-      {/* Fitter selection modal — rendered outside drawer so it can overflow */}
-      <FitterSelectionModal
-        open={fitterModalOpen}
-        onClose={() => setFitterModalOpen(false)}
-        tyreQty={tyreQty}
-        cartSubtotal={tyresTotal}
-      />
     </>
   )
 }

@@ -36,7 +36,6 @@ export default function EditProductPage() {
   const [existingSkus, setExistingSkus] = useState<ExistingSku[]>([])
   const [patternInfo, setPatternInfo] = useState<{ name: string; brandName: string } | null>(null)
   const [meta, setMeta]   = useState<Meta>({ brands: [], collections: [], categories: [], patterns: [] })
-  const [warehouses, setWarehouses] = useState<{ warehouse_id: string; warehouse_name: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { document.title = 'Edit Product | Tyres & Car Valeting' }, [])
@@ -51,10 +50,9 @@ export default function EditProductPage() {
         const tok = session?.access_token ?? ''
         const headers = { Authorization: `Bearer ${tok}` }
 
-        const [productRes, metaRes, whRes] = await Promise.all([
+        const [productRes, metaRes] = await Promise.all([
           fetch(`${API}/api/admin/products/${id}`, { headers }),
           fetch(`${API}/api/admin/products/meta`, { headers }),
-          fetch(`${API}/api/admin/orders/warehouses`, { headers }),
         ])
 
         if (!productRes.ok) {
@@ -67,9 +65,6 @@ export default function EditProductPage() {
 
         const productJson = await productRes.json()
         const metaJson: Meta = await metaRes.json()
-        const whJson: { warehouse_id: string; warehouse_name: string }[] = whRes.ok
-          ? await whRes.json().catch(() => [])
-          : []
 
         const p = productJson.pattern
         const skus: ExistingSku[] = (productJson.skus ?? []).map((s: any) => ({
@@ -177,8 +172,7 @@ export default function EditProductPage() {
               compareAtPrice: s.compare_at_price ?? undefined,
               costPrice:      s.cost_price ?? undefined,
               inventory:      stock?.available_stock ?? 0,
-              lowStockAlert:  s.low_stock_alert ?? 10,
-              warehouseId:    stock?.warehouse_id ?? '',
+              lowStockAlert:  stock?.minimum_stock_level ?? s.low_stock_alert ?? 10,
             }
           }),
         }
@@ -188,7 +182,6 @@ export default function EditProductPage() {
           setExistingSkus(skus)
           setPatternInfo({ name: p.pattern_name ?? '', brandName: p.brands?.brand_name ?? '' })
           setMeta(metaJson)
-          setWarehouses(Array.isArray(whJson) ? whJson : [])
         }
       } catch (err) {
         if (!cancelled) toastError(err instanceof Error ? err.message : 'Failed to load product')
@@ -224,7 +217,6 @@ export default function EditProductPage() {
       brands={meta.brands}
       collections={meta.collections}
       categories={meta.categories}
-      warehouses={warehouses}
       patterns={meta.patterns}
       existingSkus={existingSkus}
       patternInfo={patternInfo ?? undefined}

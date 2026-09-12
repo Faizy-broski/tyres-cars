@@ -39,8 +39,6 @@ function LoginForm() {
     const role = (profile as any)?.role
     if (role === 'super_admin') {
       window.location.replace('/admin/dashboard')
-    } else if (role === 'fitter') {
-      window.location.replace('/fitter/dashboard')
     } else {
       window.location.replace(redirect)
     }

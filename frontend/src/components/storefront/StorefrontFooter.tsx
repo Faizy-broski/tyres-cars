@@ -17,12 +17,7 @@ export default function StorefrontFooter() {
           <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-zinc-500">
             <Link href="/tyres"   className="hover:text-zinc-800">Shop Tyres</Link>
             <Link href="/account" className="hover:text-zinc-800">My Account</Link>
-            <Link
-              href="/fitter/onboarding"
-              className="rounded-full bg-primary px-4 py-1.5 font-semibold text-zinc-900 hover:brightness-95"
-            >
-              Become a Fitter
-            </Link>
+            <Link href="/contact" className="hover:text-zinc-800">Contact</Link>
           </nav>
         </div>
         <p className="mt-8 text-xs text-zinc-400">© {new Date().getFullYear()} Tyres & Car Valeting. All rights reserved.</p>

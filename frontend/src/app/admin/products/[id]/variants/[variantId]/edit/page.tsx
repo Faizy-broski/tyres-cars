@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input'
 import { getAdminToken } from '@/lib/admin-token'
 import { toastError, toastSuccess } from '@/lib/toast'
 import StockTab from '@/components/admin/products/StockTab'
-import InternalStockSection from '@/components/admin/products/InternalStockSection'
-import SupplierMappingSection from '@/components/admin/products/SupplierMappingSection'
 import type { Sku, ProductPrice } from '@/types/admin.types'
 
 const API = process.env.INTERNAL_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
@@ -339,29 +337,11 @@ export default function EditVariantPage() {
 
       <div className="rounded-xl border border-zinc-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-zinc-900 mb-4">Stock</h2>
-        <StockTab productId={variantId} patternId={id} />
-      </div>
-
-      <div className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-4">
-          4. Internal Owned Stock (Auto-Synced)
-        </h2>
-        <InternalStockSection
-          variantId={variantId}
+        <StockTab
+          productId={variantId}
           patternId={id}
-          retailPrice={prices.find(p => p.price_type === 'retail')?.price_inc_gst ?? null}
-          priceId={prices.find(p => p.price_type === 'retail')?.price_id ?? null}
-        />
-      </div>
-
-      <div className="rounded-xl border border-zinc-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-teal-700 uppercase tracking-wide mb-4">
-          5. Supplier API / EDI Mapping (External Stock)
-        </h2>
-        <SupplierMappingSection
-          variantId={variantId}
-          patternId={id}
-          ourSkuMatch={sku.tyre_size_display || sku.sku}
+          initialAvailableStock={sku.product_stock?.[0]?.available_stock ?? 0}
+          initialLowStockAlert={sku.product_stock?.[0]?.minimum_stock_level ?? sku.low_stock_alert ?? 10}
         />
       </div>
       </div>

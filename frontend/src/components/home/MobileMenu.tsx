@@ -19,9 +19,7 @@ const TYRE_CATEGORIES = [
 const navLinks = [
   { label: 'Services', href: '/services' },
   { label: 'About Us', href: '/about' },
-  { label: 'Promotions', href: '/promotions' },
   { label: 'Contact', href: '/contact' },
-  { label: 'Track Order', href: '/track-order' },
 ]
 
 interface Props {

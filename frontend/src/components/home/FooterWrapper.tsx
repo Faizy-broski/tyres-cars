@@ -4,7 +4,7 @@ import FooterSection, { type FooterTopSection } from './FooterSection'
 export default async function FooterWrapper() {
   const supabase = await createClient()
 
-  const [brandsRes, patternsRes, sizesRes, makesRes, modelsRes] = await Promise.all([
+  const [brandsRes, patternsRes, sizesRes] = await Promise.all([
     supabase
       .from('brands')
       .select('brand_name, brand_slug')
@@ -30,22 +30,6 @@ export default async function FooterWrapper() {
       .order('profile')
       .order('rim_size')
       .limit(100),
-
-    supabase
-      .from('vehicles')
-      .select('make')
-      .neq('make', '')
-      .order('make')
-      .limit(500),
-
-    supabase
-      .from('vehicles')
-      .select('make, model')
-      .neq('make', '')
-      .neq('model', '')
-      .order('make')
-      .order('model')
-      .limit(500),
   ])
 
   // ── Brands ───────────────────────────────────────────────────────────────
@@ -96,52 +80,9 @@ export default async function FooterWrapper() {
     items: sizeItems,
   }
 
-  // ── Vehicle makes — deduplicate ────────────────────────────────────────
-  const seenMakes = new Set<string>()
-  const makeItems = (makesRes.data ?? [])
-    .filter(v => {
-      if (!v.make || seenMakes.has(v.make)) return false
-      seenMakes.add(v.make)
-      return true
-    })
-    .slice(0, 10)
-    .map(v => ({
-      label: v.make as string,
-      href:  `/tyres?make=${encodeURIComponent(v.make as string)}`,
-    }))
-
-  const vehicleMakes: FooterTopSection = {
-    title:     'Top Vehicle Makers',
-    moreLabel: '...more vehicle makes',
-    moreHref:  '/tyres',
-    items: makeItems,
-  }
-
-  // ── Vehicle models — deduplicate ───────────────────────────────────────
-  const seenModels = new Set<string>()
-  const modelItems = (modelsRes.data ?? [])
-    .filter(v => {
-      const key = `${v.make}:${v.model}`
-      if (!v.make || !v.model || seenModels.has(key)) return false
-      seenModels.add(key)
-      return true
-    })
-    .slice(0, 10)
-    .map(v => ({
-      label: `${v.make} ${v.model}`,
-      href:  `/tyres?make=${encodeURIComponent(v.make as string)}&model=${encodeURIComponent(v.model as string)}`,
-    }))
-
-  const vehicleModels: FooterTopSection = {
-    title:     'Top Vehicle Models',
-    moreLabel: '...more vehicle models',
-    moreHref:  '/tyres',
-    items: modelItems,
-  }
-
   return (
     <FooterSection
-      topSections={[brands, patterns, sizes, vehicleMakes, vehicleModels]}
+      topSections={[brands, patterns, sizes]}
     />
   )
 }

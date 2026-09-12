@@ -11,8 +11,6 @@ router.post('/', async (req, res, next) => {
       customer,
       items,
       shipping_address,
-      fitment_centre_id,
-      booking_slot,
       stripe_payment_intent_id,
       total_amount,
     } = req.body
@@ -25,7 +23,6 @@ router.post('/', async (req, res, next) => {
       customer,
       items,
       shipping_address,
-      fitment_centre_id:        fitment_centre_id        ?? null,
       stripe_payment_intent_id: stripe_payment_intent_id ?? null,
       total_amount,
     })

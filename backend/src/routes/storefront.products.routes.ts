@@ -50,8 +50,8 @@ router.get('/slug/:slug', async (req, res, next) => {
           gallery_images,
           brands ( brand_name, brand_slug )
         ),
-        product_prices ( price_type, price_inc_gst, price_ex_gst, customer_group_id ),
-        product_stock ( available_stock, reserved_stock, warehouses ( warehouse_name ) )
+        product_prices ( price_type, price_inc_gst, price_ex_gst ),
+        product_stock ( available_stock, reserved_stock )
       `)
       .eq('product_slug', slug)
       .eq('status', 'active')
@@ -71,9 +71,9 @@ router.get('/slug/:slug', async (req, res, next) => {
       .neq('product_id', sku.product_id)
       .order('width').order('profile').order('rim_size')
 
-    // Retail price = price_type 'retail' with no customer group override (the base public price)
+    // Retail price = the base public price
     const retail_price = ((sku as any).product_prices ?? [])
-      .find((p: any) => p.price_type === 'retail' && !p.customer_group_id)
+      .find((p: any) => p.price_type === 'retail')
       ?.price_inc_gst ?? null
 
     res.json({

@@ -2,17 +2,10 @@
 
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { CheckCircle2, Circle, Package, Truck, MapPin, ExternalLink } from 'lucide-react'
-import type {
-  CustomerOrderDetail,
-  GuestOrderResult,
-  OrderActivity,
-  GuestOrderActivity,
-  OrderShipment,
-  GuestOrderShipment,
-} from '@/lib/query/customer-hooks'
+import { CheckCircle2, Package, MapPin } from 'lucide-react'
+import type { CustomerOrderDetail } from '@/lib/query/customer-hooks'
 
-// Normalise both guest and authenticated order shapes into one display type
+// Normalise the order's items/activity into one simple display shape
 type DisplayOrder = {
   order_number:              string
   order_status:              string
@@ -22,7 +15,6 @@ type DisplayOrder = {
   total_amount:              number
   created_at:                string
   shipping_cost:             number | null
-  fitting_cost:              number | null
   gst_amount:                number | null
   discount_amount:           number | null
   shipping_address_snapshot: Record<string, string> | null
@@ -31,15 +23,6 @@ type DisplayOrder = {
     quantity:   number
     unit_price: number
   }>
-  shipments: Array<{
-    shipment_id:     string
-    shipment_number: string
-    status:          string
-    tracking_number: string | null
-    tracking_uri:    string | null
-    shipped_at:      string | null
-    delivered_at:    string | null
-  }>
   activity: Array<{
     event_type:  string
     description: string | null
@@ -47,53 +30,25 @@ type DisplayOrder = {
   }>
 }
 
-function normalise(order: CustomerOrderDetail | GuestOrderResult): DisplayOrder {
-  if ('order_items' in order) {
-    // CustomerOrderDetail
-    return {
-      order_number:              order.order_number,
-      order_status:              order.order_status,
-      payment_status:            order.payment_status,
-      order_type:                order.order_type,
-      delivery_method:           order.delivery_method,
-      total_amount:              order.total_amount,
-      created_at:                order.created_at,
-      shipping_cost:             order.shipping_cost ?? null,
-      fitting_cost:              order.fitting_cost ?? null,
-      gst_amount:                order.gst_amount ?? null,
-      discount_amount:           order.discount_amount ?? null,
-      shipping_address_snapshot: order.shipping_address_snapshot ?? null,
-      items: (order.order_items ?? []).map(oi => ({
-        label:      oi.skus?.tyre_size_display ?? oi.skus?.sku ?? oi.product_id,
-        quantity:   oi.quantity,
-        unit_price: oi.unit_price,
-      })),
-      shipments: order.order_shipments ?? [],
-      activity:  order.order_activity ?? [],
-    }
-  } else {
-    // GuestOrderResult
-    return {
-      order_number:              order.order_number,
-      order_status:              order.order_status,
-      payment_status:            order.payment_status,
-      order_type:                order.order_type,
-      delivery_method:           order.delivery_method ?? null,
-      total_amount:              order.total_amount,
-      created_at:                order.created_at,
-      shipping_cost:             null,
-      fitting_cost:              null,
-      gst_amount:                null,
-      discount_amount:           null,
-      shipping_address_snapshot: order.shipping_address_snapshot ?? null,
-      items: (order.items ?? []).map(i => ({
-        label:      i.tyre_size ?? i.sku ?? i.order_item_id,
-        quantity:   i.quantity,
-        unit_price: i.unit_price,
-      })),
-      shipments: order.shipments ?? [],
-      activity:  order.activity ?? [],
-    }
+function normalise(order: CustomerOrderDetail): DisplayOrder {
+  return {
+    order_number:              order.order_number,
+    order_status:              order.order_status,
+    payment_status:            order.payment_status,
+    order_type:                order.order_type,
+    delivery_method:           order.delivery_method,
+    total_amount:              order.total_amount,
+    created_at:                order.created_at,
+    shipping_cost:             order.shipping_cost ?? null,
+    gst_amount:                order.gst_amount ?? null,
+    discount_amount:           order.discount_amount ?? null,
+    shipping_address_snapshot: order.shipping_address_snapshot ?? null,
+    items: (order.order_items ?? []).map(oi => ({
+      label:      oi.skus?.tyre_size_display ?? oi.skus?.sku ?? oi.product_id,
+      quantity:   oi.quantity,
+      unit_price: oi.unit_price,
+    })),
+    activity: order.order_activity ?? [],
   }
 }
 
@@ -149,7 +104,7 @@ function Timeline({ activity }: { activity: DisplayOrder['activity'] }) {
   )
 }
 
-export default function OrderStatusCard({ order }: { order: CustomerOrderDetail | GuestOrderResult }) {
+export default function OrderStatusCard({ order }: { order: CustomerOrderDetail }) {
   const d = normalise(order)
   const date = new Date(d.created_at).toLocaleDateString('en-AU', {
     day: 'numeric', month: 'long', year: 'numeric',
@@ -195,12 +150,6 @@ export default function OrderStatusCard({ order }: { order: CustomerOrderDetail 
         <Separator />
 
         <div className="space-y-1 text-sm">
-          {d.fitting_cost != null && d.fitting_cost > 0 && (
-            <div className="flex justify-between text-zinc-600">
-              <span>Fitting</span>
-              <span>A${Number(d.fitting_cost).toFixed(2)}</span>
-            </div>
-          )}
           {d.shipping_cost != null && d.shipping_cost > 0 && (
             <div className="flex justify-between text-zinc-600">
               <span>Shipping</span>
@@ -219,47 +168,6 @@ export default function OrderStatusCard({ order }: { order: CustomerOrderDetail 
           </div>
         </div>
       </div>
-
-      {/* Shipments */}
-      {d.shipments.length > 0 && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
-          <h3 className="text-sm font-semibold text-zinc-700 flex items-center gap-2">
-            <Truck className="h-4 w-4" /> Shipment{d.shipments.length > 1 ? 's' : ''}
-          </h3>
-          <ul className="space-y-3">
-            {d.shipments.map((s, i) => (
-              <li key={i} className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm space-y-1">
-                <div className="flex items-center justify-between">
-                  <Badge variant={statusBadgeVariant(s.status)} className="text-xs">{statusLabel(s.status)}</Badge>
-                  {s.tracking_uri && (
-                    <a
-                      href={s.tracking_uri}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-primary hover:underline"
-                    >
-                      Track shipment <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </div>
-                {s.tracking_number && (
-                  <p className="text-xs text-zinc-500 font-mono">{s.tracking_number}</p>
-                )}
-                {s.shipped_at && (
-                  <p className="text-xs text-zinc-400">
-                    Shipped {new Date(s.shipped_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                )}
-                {s.delivered_at && (
-                  <p className="text-xs text-zinc-400">
-                    Delivered {new Date(s.delivered_at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {/* Delivery address */}
       {d.shipping_address_snapshot && (

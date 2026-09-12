@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronRight, ChevronLeft, MapPin, Wrench, CheckCircle, Car, LogIn, UserPlus } from 'lucide-react'
+import { ChevronRight, ChevronLeft, CheckCircle, LogIn, UserPlus } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
 import { createClient } from '@/lib/supabase/client'
 
@@ -28,7 +28,7 @@ interface CustomerInfo {
 
 // ── Step bar ──────────────────────────────────────────────────────────────────
 
-const STEPS = ['Shipping', 'Fitter', 'Payment', 'Confirmation']
+const STEPS = ['Shipping', 'Payment', 'Confirmation']
 
 function StepBar({ current }: { current: number }) {
   return (
@@ -211,115 +211,13 @@ function AddressStep({ onNext }: { onNext: (addr: Address, customer: CustomerInf
         disabled={!valid}
         className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Continue to Fitter Selection
-      </button>
-    </div>
-  )
-}
-
-// ── Step 1: Fitter ────────────────────────────────────────────────────────────
-
-function FitterStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const { fittingSelection, setFittingSelection } = useCartStore()
-  const [showChangeModal, setShowChangeModal] = useState(false)
-
-  return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-3">
-        <button type="button" onClick={onBack} className="text-zinc-400 hover:text-zinc-700">
-          <ChevronLeft className="w-5 h-5" />
-        </button>
-        <h2 className="text-lg font-semibold text-zinc-900">Fitting partner</h2>
-      </div>
-
-      {fittingSelection ? (
-        <div className="rounded-xl border-2 border-primary bg-primary/5 p-5 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
-              <Car className="w-5 h-5 text-zinc-900" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-zinc-900">{fittingSelection.centreName}</p>
-              {fittingSelection.address && (
-                <p className="text-xs text-zinc-500 flex items-center gap-1">
-                  <MapPin className="w-3 h-3" />{fittingSelection.address}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="border-t border-primary/20 pt-3 space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-zinc-600">Fitting cost</span>
-              <span className="font-semibold text-zinc-900">A${fittingSelection.totalFittingCost.toFixed(2)}</span>
-            </div>
-            {fittingSelection.wheelAlignment && (
-              <div className="flex justify-between text-xs text-zinc-500">
-                <span>Incl. {fittingSelection.wheelAlignment.type === '2_wheel' ? '2-wheel' : '4-wheel'} alignment</span>
-                <span>A${fittingSelection.wheelAlignment.price.toFixed(2)}</span>
-              </div>
-            )}
-            <p className="text-xs text-zinc-400 mt-1">The fitter will contact you to arrange a fitting time.</p>
-          </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setShowChangeModal(true)} className="text-xs text-primary hover:underline">
-              Change fitting partner
-            </button>
-            <span className="text-zinc-300">·</span>
-            <button type="button" onClick={() => setFittingSelection(null)} className="text-xs text-red-500 hover:underline">
-              Remove fitting
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="rounded-xl border border-dashed border-zinc-300 p-5 text-center space-y-3">
-            <div className="w-10 h-10 rounded-full bg-zinc-100 flex items-center justify-center mx-auto">
-              <Wrench className="w-5 h-5 text-zinc-400" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-zinc-800">No fitting partner selected</p>
-              <p className="text-xs text-zinc-500 mt-0.5">Your tyres will be shipped to your address.</p>
-            </div>
-            <button type="button" onClick={() => setShowChangeModal(true)} className="text-sm text-primary font-semibold hover:underline">
-              Add a fitting partner →
-            </button>
-          </div>
-          <p className="text-xs text-zinc-400 text-center">You can skip fitting and have tyres delivered to your door.</p>
-        </div>
-      )}
-
-      <button
-        type="button"
-        onClick={onNext}
-        className="w-full rounded-xl bg-primary py-3 text-sm font-bold text-zinc-900 hover:bg-primary/90 transition-colors"
-      >
         Continue to Payment
       </button>
-
-      {showChangeModal && (
-        <FitterModalLazy open={showChangeModal} onClose={() => setShowChangeModal(false)} />
-      )}
     </div>
   )
 }
 
-function FitterModalLazy({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { items, qty, subtotal } = useCartStore()
-  const tyreQty = Object.values(qty).reduce((s, q) => s + q, 0)
-  const cartSubtotal = subtotal()
-  const [Modal, setModal] = useState<React.ComponentType<{
-    open: boolean; onClose: () => void; tyreQty: number; cartSubtotal: number
-  }> | null>(null)
-
-  useEffect(() => {
-    import('@/components/storefront/FitterSelectionModal').then(m => setModal(() => m.default))
-  }, [])
-
-  if (!Modal) return null
-  return <Modal open={open} onClose={onClose} tyreQty={tyreQty} cartSubtotal={cartSubtotal} />
-}
-
-// ── Step 2: Payment ───────────────────────────────────────────────────────────
+// ── Step 1: Payment ───────────────────────────────────────────────────────────
 
 function PaymentForm({ onSuccess, onBack }: { onSuccess: () => void; onBack: () => void }) {
   const [loading, setLoading] = useState(false)
@@ -389,14 +287,8 @@ function ConfirmationStep({ orderRef, customerEmail }: { orderRef: string; custo
         Reference: <span className="font-mono font-semibold text-zinc-800">{orderRef}</span>
       </p>
       <p className="text-sm text-zinc-500 max-w-xs">
-        You&apos;ll receive a confirmation email shortly. If you selected a fitting partner, they&apos;ll contact you to arrange a fitting time.
+        You&apos;ll receive a confirmation email shortly.
       </p>
-      <Link
-        href={`/track-order?order=${encodeURIComponent(orderRef)}&email=${encodeURIComponent(customerEmail)}`}
-        className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
-      >
-        Track your order →
-      </Link>
       <GuestAccountCTA email={customerEmail} />
       <button
         type="button"
@@ -412,7 +304,7 @@ function ConfirmationStep({ orderRef, customerEmail }: { orderRef: string; custo
 // ── Main checkout ─────────────────────────────────────────────────────────────
 
 function CheckoutInner() {
-  const { items, qty, subtotal, grandTotal, fittingSelection, clearCart } = useCartStore()
+  const { items, qty, subtotal, clearCart } = useCartStore()
   const router = useRouter()
 
   const [step,           setStep]           = useState(0)
@@ -421,27 +313,22 @@ function CheckoutInner() {
   const [clientSecret,   setClientSecret]   = useState<string | null>(null)
   const [confirmedTotal, setConfirmedTotal] = useState<number>(0)
   const [orderRef,       setOrderRef]       = useState('')
-  const [paymentLoading, setPaymentLoading] = useState(false)
   const [orderError,     setOrderError]     = useState<string | null>(null)
   const [mounted,        setMounted]        = useState(false)
 
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    if (items.length === 0 && step !== 3) router.push('/tyres')
+    if (items.length === 0 && step !== 2) router.push('/tyres')
   }, [items.length, step, router])
 
   async function handleAddressNext(addr: Address, cust: CustomerInfo) {
     setAddress(addr)
     setCustomer(cust)
-    setStep(1)
-  }
-
-  async function handleFitterNext() {
     setOrderError(null)
-    setConfirmedTotal(grandTotal())
+    setConfirmedTotal(subtotal())
     setClientSecret('test_mode')
-    setStep(2)
+    setStep(1)
   }
 
   async function handlePaymentSuccess() {
@@ -464,10 +351,8 @@ function CheckoutInner() {
             unit_price: item.price,
           })),
           shipping_address:         address,
-          fitment_centre_id:        fittingSelection?.centreId ?? null,
-          wheel_alignment_type:     fittingSelection?.wheelAlignment?.type ?? null,
           stripe_payment_intent_id: null,
-          total_amount:             confirmedTotal > 0 ? confirmedTotal : grandTotal(),
+          total_amount:             confirmedTotal > 0 ? confirmedTotal : subtotal(),
         }),
       })
 
@@ -480,7 +365,7 @@ function CheckoutInner() {
       const data = await res.json() as { order_number?: string }
       setOrderRef(data.order_number ?? 'N/A')
       clearCart()
-      setStep(3)
+      setStep(2)
     } catch {
       setOrderError('Network error. Please contact support with your payment reference.')
     }
@@ -493,7 +378,7 @@ function CheckoutInner() {
     price: item.price,
   }))
 
-  const displayTotal = confirmedTotal > 0 ? confirmedTotal : grandTotal()
+  const displayTotal = confirmedTotal > 0 ? confirmedTotal : subtotal()
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
@@ -505,30 +390,18 @@ function CheckoutInner() {
         <div className="lg:col-span-2 bg-white rounded-2xl border border-zinc-200 p-6">
           {step === 0 && <AddressStep onNext={handleAddressNext} />}
 
-          {step === 1 && (
-            <FitterStep onNext={handleFitterNext} onBack={() => setStep(0)} />
-          )}
-          {step === 1 && paymentLoading && (
-            <div className="flex items-center justify-center py-6">
-              <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-            </div>
+          {step === 1 && clientSecret && (
+            <PaymentForm onSuccess={handlePaymentSuccess} onBack={() => setStep(0)} />
           )}
           {step === 1 && orderError && (
             <p className="mt-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-4 py-2">{orderError}</p>
           )}
 
-          {step === 2 && clientSecret && (
-            <PaymentForm onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />
-          )}
-          {step === 2 && orderError && (
-            <p className="mt-3 text-sm text-red-600 rounded-lg border border-red-200 bg-red-50 px-4 py-2">{orderError}</p>
-          )}
-
-          {step === 3 && <ConfirmationStep orderRef={orderRef} customerEmail={customer?.email ?? ''} />}
+          {step === 2 && <ConfirmationStep orderRef={orderRef} customerEmail={customer?.email ?? ''} />}
         </div>
 
         {/* Order summary */}
-        {step < 3 && (
+        {step < 2 && (
           <aside className="bg-white rounded-2xl border border-zinc-200 p-5 h-fit space-y-4">
             <h3 className="text-sm font-semibold text-zinc-900">Order summary</h3>
             <ul className="space-y-3">
@@ -546,20 +419,6 @@ function CheckoutInner() {
             </ul>
 
             <div className="border-t border-zinc-100 pt-3 space-y-1.5">
-              {fittingSelection && (
-                <>
-                  <div className="flex justify-between text-sm text-zinc-600">
-                    <span>Fitting ({fittingSelection.centreName})</span>
-                    <span>A${fittingSelection.totalFittingCost.toFixed(2)}</span>
-                  </div>
-                  {fittingSelection.wheelAlignment && (
-                    <div className="flex justify-between text-xs text-zinc-400">
-                      <span>Incl. wheel alignment</span>
-                      <span>A${fittingSelection.wheelAlignment.price.toFixed(2)}</span>
-                    </div>
-                  )}
-                </>
-              )}
               <div className="flex justify-between text-base font-bold text-zinc-900 pt-1">
                 <span>Total</span>
                 <span suppressHydrationWarning>A${mounted ? displayTotal.toFixed(2) : '0.00'}</span>
@@ -572,15 +431,6 @@ function CheckoutInner() {
                 <p className="font-semibold text-zinc-700">Delivering to</p>
                 <p>{address.line1}{address.line2 ? `, ${address.line2}` : ''}</p>
                 <p>{address.suburb} {address.state} {address.postcode}</p>
-              </div>
-            )}
-
-            {fittingSelection && (
-              <div className="text-xs text-zinc-500 border-t border-zinc-100 pt-3 space-y-0.5">
-                <p className="font-semibold text-zinc-700">Fitting service</p>
-                <p>{fittingSelection.centreName}</p>
-                {fittingSelection.address && <p>{fittingSelection.address}</p>}
-                <p className="text-zinc-400">Fitter will contact you to arrange a time</p>
               </div>
             )}
           </aside>

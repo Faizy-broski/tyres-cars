@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createClient } from '@/lib/supabase/client'
-import { fetchBackendJson, BACKEND_API_URL } from '@/lib/backend-api'
+import { fetchBackendJson } from '@/lib/backend-api'
 import { customerKeys } from './keys'
 
 async function getToken(): Promise<string> {
@@ -40,7 +40,6 @@ export interface CustomerOrderDetail {
   currency:                   string
   notes:                      string | null
   shipping_cost:              number | null
-  fitting_cost:               number | null
   gst_amount:                 number | null
   discount_amount:            number | null
   total_amount:               number
@@ -48,18 +47,15 @@ export interface CustomerOrderDetail {
   order_status:               string
   order_type:                 string
   delivery_method:            string
-  fitment_centre_id:          string | null
   shipping_address_snapshot:  Record<string, string> | null
   order_items:                OrderItem[]
   order_payments:             OrderPayment[]
-  order_shipments:            OrderShipment[]
   order_activity:             OrderActivity[]
 }
 
 export interface OrderItem {
   order_item_id: string
   product_id:    string
-  product_type:  string
   quantity:      number
   unit_price:    number
   skus:          { sku: string; tyre_size_display: string } | null
@@ -72,18 +68,6 @@ export interface OrderPayment {
   currency:       string
   status:         string
   created_at:     string
-}
-
-export interface OrderShipment {
-  shipment_id:     string
-  shipment_number: string
-  status:          string
-  tracking_number: string | null
-  tracking_uri:    string | null
-  shipping_method: string | null
-  created_at:      string
-  shipped_at:      string | null
-  delivered_at:    string | null
 }
 
 export interface OrderActivity {
@@ -191,61 +175,4 @@ export function useDeleteAddress() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: customerKeys.addresses() }),
   })
-}
-
-// ── Guest order tracking (no auth) ───────────────────────────────────────────
-
-export interface GuestOrderResult {
-  order_id:                   string
-  order_number:               string
-  order_status:               string
-  payment_status:             string
-  order_type:                 string
-  delivery_method:            string
-  total_amount:               number
-  created_at:                 string
-  shipping_address_snapshot:  Record<string, string> | null
-  items:                      GuestOrderItem[]
-  shipments:                  GuestOrderShipment[]
-  activity:                   GuestOrderActivity[]
-}
-
-export interface GuestOrderItem {
-  order_item_id: string
-  quantity:      number
-  unit_price:    number
-  total_price:   number
-  sku:           string | null
-  tyre_size:     string | null
-  product_type:  string
-}
-
-export interface GuestOrderShipment {
-  shipment_id:     string
-  shipment_number: string
-  status:          string
-  tracking_number: string | null
-  tracking_uri:    string | null
-  shipped_at:      string | null
-  delivered_at:    string | null
-}
-
-export interface GuestOrderActivity {
-  event_type:  string
-  description: string | null
-  created_at:  string
-}
-
-export async function fetchGuestOrder(orderNumber: string, email: string): Promise<GuestOrderResult | null> {
-  const res = await fetch(`${BACKEND_API_URL}/api/track`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ order_number: orderNumber, email }),
-  })
-  if (res.status === 404) return null
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({}))
-    throw new Error((body as any).error ?? `Request failed (${res.status})`)
-  }
-  return res.json()
 }

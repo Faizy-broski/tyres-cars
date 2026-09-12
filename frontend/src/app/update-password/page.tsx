@@ -46,7 +46,6 @@ export default function UpdatePasswordPage() {
 
       const role = (profile as { role?: string } | null)?.role
       if (role === 'super_admin') { router.push('/admin/dashboard'); return }
-      if (role === 'fitter')      { router.push('/fitter/dashboard'); return }
     }
 
     router.push('/')

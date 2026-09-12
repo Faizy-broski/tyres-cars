@@ -1,28 +1,19 @@
 'use client'
 
-import { useState, type FormEvent } from 'react'
-import { toastSuccess, toastError } from '@/lib/toast'
+import { useState } from 'react'
 import type { ComponentType } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw, ShieldCheck, PackageCheck,
-  Clock, HelpCircle, Check, Tag, Hash, Award, Ruler, Gauge, Mail, BadgeCheck,
+  Clock, HelpCircle, Check, Tag, Hash, Award, Ruler, Gauge, Mail,
 } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
-import FitterSelectionModal from '@/components/storefront/FitterSelectionModal'
 import ImageMagnifier from '@/components/storefront/ImageMagnifier'
 import ImageLightbox from '@/components/storefront/ImageLightbox'
 import InquiryModal from '@/components/storefront/InquiryModal'
 import { DiscountBadge, RibbonBadge } from '@/components/storefront/TyreCard'
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Button } from '@/components/ui/button'
 
 interface Sibling {
   product_id:        string
@@ -134,9 +125,8 @@ function SpecRow({ label, value, icon: Icon }: {
 export default function ProductDetailClient({ product }: { product: Product }) {
   const [activeImg, setActiveImg] = useState(0)
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [fitterOpen, setFitterOpen] = useState(false)
   const [qty, setQty] = useState(1)
-  const { addItem, openCart, fittingSelection } = useCartStore()
+  const { addItem, openCart } = useCartStore()
 
   const images = [
     ...(product.variant_images ?? []),
@@ -305,12 +295,10 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               </div>
             )}
 
-            {fittingSelection && (
-              <p className="flex items-start gap-1.5 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
-                <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                <span><span className="font-semibold text-zinc-700">All-Inclusive Price:</span> Includes delivery, balancing, new valve and eco-friendly tyre disposal.</span>
-              </p>
-            )}
+            <p className="flex items-start gap-1.5 text-xs text-zinc-500 border-t border-zinc-100 pt-3">
+              <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+              <span><span className="font-semibold text-zinc-700">All-Inclusive Price:</span> Includes delivery, balancing, new valve and eco-friendly tyre disposal.</span>
+            </p>
           </div>
 
           {/* Size selector */}
@@ -358,14 +346,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             >
               <ShoppingCart className="w-4 h-4" />
               {product.total_available_stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setFitterOpen(true)}
-              className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-200 py-3 text-sm font-semibold text-zinc-700 hover:border-primary hover:text-primary transition-colors"
-            >
-              <Wrench className="w-4 h-4" />
-              Choose a Fitter
             </button>
           </div>
 
@@ -439,13 +419,6 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           />
         </div>
       )}
-
-      <FitterSelectionModal
-        open={fitterOpen}
-        onClose={() => setFitterOpen(false)}
-        tyreQty={qty}
-        cartSubtotal={product.retail_price ?? 0}
-      />
     </div>
   )
 }
@@ -507,121 +480,7 @@ function SizeSelector({ current, siblings }: { current: Product; siblings: Sibli
             </option>
           ))}
         </select>
-
-        <PriceMatchDialog product={current} />
       </div>
     </div>
-  )
-}
-
-function PriceMatchDialog({ product }: { product: Product }) {
-  const [open, setOpen] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
-  const [message, setMessage] = useState('')
-
-  const price = product.promo_price ?? product.retail_price
-  const productUrl = typeof window !== 'undefined' && product.product_slug
-    ? `${window.location.origin}/tyres/${product.product_slug}`
-    : product.product_slug ? `/tyres/${product.product_slug}` : undefined
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault()
-    if (!name.trim() || !email.trim() || !message.trim()) {
-      toastError('Please fill in your name, email and the competitor details.')
-      return
-    }
-    setSubmitting(true)
-    try {
-      const API = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-      const res = await fetch(`${API}/api/price-match`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name, email, phone: phone || undefined, message,
-          product_id: product.product_id,
-          sku: product.sku,
-          product_name: [product.brand_name, product.pattern_name].filter(Boolean).join(' '),
-          tyre_size_display: product.tyre_size_display,
-          price,
-          product_url: productUrl,
-        }),
-      })
-      if (!res.ok) throw new Error('Failed to submit request')
-
-      toastSuccess('Request sent', "We'll do our best to match the price and get back to you shortly.")
-      setName(''); setEmail(''); setPhone(''); setMessage('')
-      setOpen(false)
-    } catch {
-      toastError('Something went wrong', 'Please try again or email support@tyrevault.com.au directly.')
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button
-          type="button"
-          className="flex items-center justify-center gap-2 rounded-lg border-2 border-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors whitespace-nowrap"
-        >
-          <BadgeCheck className="w-4 h-4" />
-          Price Match
-        </button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Price Match Promise</DialogTitle>
-          <DialogDescription>
-            Found this tyre cheaper elsewhere? Send us your details and a link to the competitor&apos;s
-            listing and we&apos;ll do our best to match it.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-zinc-600">
-            <p className="font-semibold text-zinc-800">
-              {[product.brand_name, product.pattern_name].filter(Boolean).join(' ') || product.sku}
-            </p>
-            <p>{product.tyre_size_display} &middot; SKU {product.sku}{price != null ? ` · $${price.toLocaleString()}` : ''}</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="pm-name">Name</Label>
-              <Input id="pm-name" value={name} onChange={e => setName(e.target.value)} required />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="pm-email">Email</Label>
-              <Input id="pm-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="pm-phone">Phone (optional)</Label>
-            <Input id="pm-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="pm-message">Competitor link / details</Label>
-            <Textarea
-              id="pm-message"
-              rows={3}
-              placeholder="Paste a link to the cheaper listing, or share the details."
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              required
-            />
-          </div>
-
-          <Button type="submit" disabled={submitting} className="w-full">
-            {submitting ? 'Sending…' : 'Send Request'}
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }

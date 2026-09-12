@@ -1,7 +1,7 @@
 import { supabase } from './supabase.service'
 
 // Valid owner types per schema enum
-export type AddressOwnerType = 'customer' | 'warehouse' | 'supplier' | 'fitter'
+export type AddressOwnerType = 'customer'
 
 const ADDRESS_SELECT =
   'address_id, address_name, address_line1, address_line_1, address_line2, address_line_2, ' +

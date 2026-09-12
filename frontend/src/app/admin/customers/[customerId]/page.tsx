@@ -9,7 +9,6 @@ import { toastError } from '@/lib/toast'
 import type {
   Address,
   CustomerDetail,
-  CustomerGroup,
   CustomerListItem,
 } from '@/types/admin.types'
 
@@ -25,7 +24,6 @@ export type CustomerOrder = {
   item_count: number
   order_type: string | null
   payment_method?: string | null
-  fitment_id?: string | null
 }
 
 export type OrderStats = {
@@ -39,7 +37,6 @@ type PageState = {
   customer: CustomerListItem
   orders: CustomerOrder[]
   orderStats: OrderStats
-  groups: CustomerGroup[]
   addresses: Address[]
   primaryAddress: Address | null
 }
@@ -78,20 +75,13 @@ export default function CustomerDetailPage() {
         const detail: CustomerDetail = json.customer
 
         const customer: CustomerListItem = {
-          customer_id:        detail.customer_id,
-          email:              detail.email,
-          first_name:         detail.first_name,
-          last_name:          detail.last_name,
-          business_name:      detail.business_name,
-          phone:              detail.phone,
-          created_at:         detail.created_at,
-          profile_id:         detail.profile_id,
-          customer_type:      detail.customer_type     ?? null,
-          account_status:     detail.account_status    ?? null,
-          credit_limit:       detail.credit_limit      ?? null,
-          payment_terms:      detail.payment_terms     ?? null,
-          billing_address_id: detail.billing_address_id ?? null,
-          customer_group_id:  (detail as any).customer_group_id ?? null,
+          customer_id: detail.customer_id,
+          email:       detail.email,
+          first_name:  detail.first_name,
+          last_name:   detail.last_name,
+          phone:       detail.phone,
+          created_at:  detail.created_at,
+          profile_id:  detail.profile_id,
         }
 
         const orders: CustomerOrder[] = detail.orders.map(order => ({
@@ -119,7 +109,6 @@ export default function CustomerDetailPage() {
           customer,
           orders,
           orderStats,
-          groups: detail.groups as CustomerGroup[],
           addresses,
           primaryAddress: addresses[0] ?? null,
         })
@@ -170,7 +159,6 @@ export default function CustomerDetailPage() {
         customer={state.customer}
         orders={state.orders}
         orderStats={state.orderStats}
-        groups={state.groups}
         addresses={state.addresses}
         primaryAddress={state.primaryAddress}
         onRefresh={() => setRefreshKey(k => k + 1)}

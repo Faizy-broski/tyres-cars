@@ -144,13 +144,6 @@ export default function CategoriesPage() {
         description="Classify tyres by season, application, performance, position, and terrain"
         headerAction={
           <>
-            <Link href="/admin/products/import?type=categories"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-300 bg-zinc-100 px-4 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-200 transition-colors">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-              </svg>
-              Bulk Import
-            </Link>
             <button
               type="button"
               onClick={handleNewCategory}

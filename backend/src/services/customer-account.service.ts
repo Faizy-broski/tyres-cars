@@ -4,12 +4,42 @@ const PAGE_SIZE = 20
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 
+// Registration only creates an auth user + profile row — no customers row.
+// Lazily create one here on first access so a brand-new signup can
+// immediately see their (empty) order history / account page instead of
+// hitting "Customer not found".
 export async function getCustomerByProfileId(profileId: string) {
-  return db
+  const existing = await db
     .from('customers')
     .select('customer_id, email, first_name, last_name, phone, created_at')
     .eq('profile_id', profileId)
+    .maybeSingle()
+
+  if (existing.data) return { data: existing.data, error: null }
+  if (existing.error) return existing
+
+  const { data: authUser, error: authErr } = await db.auth.admin.getUserById(profileId)
+  if (authErr || !authUser?.user?.email) {
+    return { data: null, error: authErr ?? new Error('Auth user not found') }
+  }
+
+  const meta = authUser.user.user_metadata as { first_name?: string; last_name?: string }
+  const { data: created, error: createErr } = await db
+    .from('customers')
+    .upsert(
+      {
+        profile_id: profileId,
+        email:      authUser.user.email,
+        first_name: meta?.first_name ?? null,
+        last_name:  meta?.last_name  ?? null,
+      },
+      { onConflict: 'email' }
+    )
+    .select('customer_id, email, first_name, last_name, phone, created_at')
     .single()
+
+  if (createErr) return { data: null, error: createErr }
+  return { data: created, error: null }
 }
 
 // ── Orders ────────────────────────────────────────────────────────────────────
@@ -22,7 +52,7 @@ export async function listCustomerOrders(customerId: string, page = 1) {
     .from('orders')
     .select(`
       order_id, order_number, created_at, total_amount,
-      payment_status, order_status, order_type, delivery_method,
+      payment_status, order_status,
       order_items ( order_item_id )
     `, { count: 'exact' })
     .eq('customer_id', customerId)
@@ -35,20 +65,15 @@ export async function getCustomerOrder(customerId: string, orderId: string) {
     .from('orders')
     .select(`
       order_id, order_number, created_at, currency, notes,
-      shipping_cost, fitting_cost, gst_amount, discount_amount, total_amount,
-      payment_status, order_status, order_type, delivery_method,
-      fitment_centre_id, shipping_address_snapshot,
+      gst_amount, discount_amount, total_amount,
+      payment_status, order_status,
+      shipping_address_snapshot,
       order_items (
-        order_item_id, product_id, product_type, quantity, unit_price,
+        order_item_id, product_id, quantity, unit_price,
         skus ( sku, tyre_size_display )
       ),
       order_payments (
         payment_id, payment_method, amount, currency, status, created_at
-      ),
-      order_shipments (
-        shipment_id, shipment_number, status,
-        tracking_number, tracking_uri, shipping_method,
-        created_at, shipped_at, delivered_at
       ),
       order_activity (
         activity_id, event_type, description, created_at

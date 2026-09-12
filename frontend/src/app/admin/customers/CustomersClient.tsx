@@ -28,37 +28,6 @@ function AccountBadge({ isGuest }: { isGuest: boolean }) {
   )
 }
 
-const CUSTOMER_TYPE_STYLES: Record<string, string> = {
-  retail:    'bg-blue-50 text-blue-700',
-  wholesale: 'bg-purple-50 text-purple-700',
-  fleet:     'bg-cyan-50 text-cyan-700',
-  trade:     'bg-orange-50 text-orange-700',
-}
-
-function CustomerTypeBadge({ type }: { type: string | null }) {
-  if (!type) return <span className="text-zinc-400 text-xs">—</span>
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize w-fit ${CUSTOMER_TYPE_STYLES[type] ?? 'bg-zinc-100 text-zinc-600'}`}>
-      {type}
-    </span>
-  )
-}
-
-const ACCOUNT_STATUS_STYLES: Record<string, string> = {
-  active:  'bg-green-50 text-green-700',
-  paused:  'bg-amber-50 text-amber-700',
-  blocked: 'bg-red-50 text-red-700',
-}
-
-function AccountStatusBadge({ status }: { status: string | null }) {
-  if (!status) return <span className="text-zinc-400 text-xs">—</span>
-  return (
-    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ACCOUNT_STATUS_STYLES[status] ?? 'bg-zinc-100 text-zinc-600'}`}>
-      {status}
-    </span>
-  )
-}
-
 function fmtDate(d: string | null | undefined) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString('en-AU', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -104,19 +73,17 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
   const search       = searchParams.get('search') ?? ''
   const page         = Number(searchParams.get('page') ?? 1)
   const accountType  = (searchParams.get('accountType') as 'guest' | 'registered' | undefined) ?? undefined
-  const customerType = searchParams.get('customerType') ?? ''
-  const statusFilter = searchParams.get('status') ?? ''
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedForm, setSelectedForm] = useState<CustomerFormState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CustomerListItem | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const isDefaultView = page === 1 && !search && !accountType && !customerType && !statusFilter
+  const isDefaultView = page === 1 && !search && !accountType
 
   const statsQuery = useCustomerStats({ initialData: initialStats })
   const listQuery  = useCustomerList(
-    { search, page, accountType, customerType, statusFilter },
+    { search, page, accountType, customerType: '', statusFilter: '' },
     { initialData: isDefaultView ? initialCustomers : undefined },
   )
 
@@ -129,12 +96,10 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
     const p = new URLSearchParams()
     if (search) p.set('search', search)
     if (accountType) p.set('accountType', accountType)
-    if (customerType) p.set('customerType', customerType)
-    if (statusFilter) p.set('status', statusFilter)
     if (page > 1) p.set('page', String(page))
     Object.entries(extra).forEach(([k, v]) => { if (v) p.set(k, v); else p.delete(k) })
     return p.toString() ? `${pathname}?${p}` : pathname
-  }, [search, accountType, customerType, statusFilter, page, pathname])
+  }, [search, accountType, page, pathname])
 
   const totalPages  = Math.max(1, Math.ceil(count / LIMIT))
   const startResult = count === 0 ? 0 : (page - 1) * LIMIT + 1
@@ -242,37 +207,10 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
                 <option value="registered">Registered</option>
               </select>
 
-              <select
-                value={customerType}
-                onChange={e => router.push(buildHref({ customerType: e.target.value, page: '1' }))}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                  customerType ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-                }`}
-              >
-                <option value="">All Types</option>
-                <option value="retail">Retail</option>
-                <option value="wholesale">Wholesale</option>
-                <option value="fleet">Fleet</option>
-                <option value="trade">Trade</option>
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={e => router.push(buildHref({ status: e.target.value, page: '1' }))}
-                className={`rounded-lg border px-3 py-1.5 text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors ${
-                  statusFilter ? 'border-zinc-900 text-zinc-900 bg-zinc-50' : 'border-zinc-300 text-zinc-600'
-                }`}
-              >
-                <option value="">Any Status</option>
-                <option value="active">Active</option>
-                <option value="paused">Paused</option>
-                <option value="blocked">Blocked</option>
-              </select>
-
-              {(accountType || customerType || statusFilter || search) && (
+              {(accountType || search) && (
                 <button
                   type="button"
-                  onClick={() => router.push(buildHref({ accountType: '', customerType: '', status: '', search: '', page: '1' }))}
+                  onClick={() => router.push(buildHref({ accountType: '', search: '', page: '1' }))}
                   className="text-xs text-zinc-400 hover:text-red-600 transition-colors"
                 >
                   ✕ Clear
@@ -305,8 +243,6 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Email</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Name</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Account</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Type</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Orders</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Value</th>
                     <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Last Order</th>
@@ -317,7 +253,7 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
                     <TableBodySpinner />
                   ) : customers.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="px-5 py-16 text-center">
+                      <td colSpan={7} className="px-5 py-16 text-center">
                         <p className="text-sm font-medium text-zinc-400">{search ? `No customers matching "${search}"` : 'No customers yet.'}</p>
                       </td>
                     </tr>
@@ -336,8 +272,6 @@ export default function CustomersClient({ initialStats, initialCustomers }: Prop
                             {[customer.first_name, customer.last_name].filter(Boolean).join(' ') || '—'}
                           </td>
                           <td className="px-5 py-3"><AccountBadge isGuest={!customer.profile_id} /></td>
-                          <td className="px-5 py-3"><CustomerTypeBadge type={customer.customer_type ?? null} /></td>
-                          <td className="px-5 py-3"><AccountStatusBadge status={customer.account_status ?? null} /></td>
                           <td className="px-5 py-3 text-right text-sm text-zinc-700">{customer.order_count ?? 0}</td>
                           <td className="px-5 py-3 text-right text-sm font-medium text-zinc-800">{fmtAUD(customer.total_spent ?? 0)}</td>
                           <td className="px-5 py-3">

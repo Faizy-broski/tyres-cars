@@ -1,6 +1,11 @@
 import { supabase } from './supabase.service'
 import { redis, TTL } from './redis.service'
 import { normalizeTyreSize } from '../utils/size-normalizer'
+import { slugify } from '../utils/slugify'
+
+function makeProductSlug(sku: string, tyreSizeDisplay: string): string {
+  return slugify(`${sku}-${tyreSizeDisplay}`)
+}
 
 // Process-local cache for catalog meta data (brands, collections, categories).
 // Works even when Redis is not configured. TTL in ms.
@@ -104,7 +109,6 @@ export type PricingPayload = {
   costPrice?: number
   inventory?: number
   lowStockAlert?: number
-  warehouseId?: string
 }
 
 export type ProductListFilters = {
@@ -327,8 +331,8 @@ export async function getProduct(patternId: string) {
     .from('skus')
     .select(`
       *,
-      product_prices ( price_id, price_type, price_inc_gst, price_ex_gst, is_active, customer_group_id, warehouse_id, start_date, end_date, customer_groups ( group_name ), warehouses ( warehouse_name ) ),
-      product_stock ( stock_id, warehouse_id, available_stock, reserved_stock, incoming_stock, in_transit_stock, damaged_stock, minimum_stock_level, last_purchase_price, last_stock_update, warehouses ( warehouse_name ) )
+      product_prices ( price_id, price_type, price_inc_gst, price_ex_gst, is_active, start_date, end_date ),
+      product_stock ( stock_id, available_stock, reserved_stock, incoming_stock, in_transit_stock, damaged_stock, minimum_stock_level, last_stock_update )
     `)
     .eq('pattern_id', patternId)
     .order('rim_size', { ascending: true })
@@ -400,6 +404,7 @@ export async function createProduct(payload: CreateProductPayload) {
           brand_id: payload.brandId,
           pattern_id: patternId,
           sku: v.sku,
+          product_slug: makeProductSlug(v.sku, v.tyreSizeDisplay),
           tyre_size_display: v.tyreSizeDisplay,
           normalized_size_code: normalizeTyreSize(v.tyreSizeDisplay),
           width: v.width ?? null,
@@ -479,10 +484,9 @@ export async function createProduct(payload: CreateProductPayload) {
   const stockRows = createdSkuRows!
     .map((sku, i) => {
       const p = payload.pricing[i] ?? {}
-      if (!p.warehouseId || (p.inventory ?? 0) <= 0) return null
+      if ((p.inventory ?? 0) <= 0) return null
       return {
         product_id: sku.product_id,
-        warehouse_id: p.warehouseId,
         available_stock: p.inventory ?? 0,
         reserved_stock: 0,
         incoming_stock: 0,
@@ -592,6 +596,7 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     brand_id: pattern.brand_id,
     pattern_id: patternId,
     sku: variant.sku,
+    product_slug: makeProductSlug(variant.sku, variant.tyreSizeDisplay),
     tyre_size_display: variant.tyreSizeDisplay,
     normalized_size_code: normalizedSize,
     width: variant.width ?? null,
@@ -653,10 +658,9 @@ export async function addVariant(patternId: string, variant: VariantPayload, pri
     })
   }
 
-  if (pricing.warehouseId && (pricing.inventory ?? 0) > 0) {
+  if ((pricing.inventory ?? 0) > 0) {
     await supabase.from('product_stock').insert({
       product_id: sku.product_id,
-      warehouse_id: pricing.warehouseId,
       available_stock: pricing.inventory ?? 0,
       reserved_stock: 0,
       incoming_stock: 0,
@@ -677,6 +681,14 @@ export async function patchVariant(variantId: string, variant: Partial<VariantPa
   const updates: Record<string, unknown> = {}
   if (variant.sku !== undefined) updates.sku = variant.sku
   if (variant.tyreSizeDisplay !== undefined) { updates.tyre_size_display = variant.tyreSizeDisplay; updates.normalized_size_code = normalizeTyreSize(variant.tyreSizeDisplay) }
+  if (variant.sku !== undefined || variant.tyreSizeDisplay !== undefined) {
+    const { data: current } = await supabase.from('skus').select('sku, tyre_size_display, product_slug').eq('product_id', variantId).single()
+    const sku             = variant.sku             ?? current?.sku             ?? ''
+    const tyreSizeDisplay = variant.tyreSizeDisplay ?? current?.tyre_size_display ?? ''
+    if (sku && tyreSizeDisplay && !current?.product_slug) {
+      updates.product_slug = makeProductSlug(sku, tyreSizeDisplay)
+    }
+  }
   if (variant.width !== undefined) updates.width = variant.width ?? null
   if (variant.profile !== undefined) updates.profile = variant.profile ?? null
   if (variant.rimSize !== undefined) updates.rim_size = variant.rimSize
@@ -729,22 +741,20 @@ export async function patchVariant(variantId: string, variant: Partial<VariantPa
 }
 
 // ============================================================
-// VARIANT STOCK — update stock levels per warehouse
+// VARIANT STOCK — update stock level for a SKU
 // ============================================================
 export async function updateVariantStock(
   productId: string,
-  warehouseId: string,
   availableStock: number,
   lowStockAlert?: number
 ) {
   const { error } = await supabase.from('product_stock').upsert(
     {
       product_id: productId,
-      warehouse_id: warehouseId,
       available_stock: availableStock,
       minimum_stock_level: lowStockAlert ?? 10,
     },
-    { onConflict: 'product_id,warehouse_id' }
+    { onConflict: 'product_id' }
   )
   if (error) throw error
 
@@ -789,7 +799,7 @@ export async function deleteVariant(productId: string) {
 }
 
 // ============================================================
-// UPDATE VARIANT PRICES — upsert by (product_id, customer_group_id)
+// UPDATE VARIANT PRICES — upsert the retail price for a product
 // prices is a map of { 'Retail': 199.99, ... }  (group_name → price_inc_gst)
 // ============================================================
 export async function updateVariantPrices(
@@ -799,7 +809,7 @@ export async function updateVariantPrices(
   // Fetch existing price rows so we can match by price_id
   const { data: existing } = await supabase
     .from('product_prices')
-    .select('price_id, customer_group_id, price_type')
+    .select('price_id, price_type')
     .eq('product_id', productId)
 
   const gstRate = 0.1
@@ -807,10 +817,8 @@ export async function updateVariantPrices(
   const toUpdate: { price_id: string; product_id: string; price_type: string; price_inc_gst: number; price_ex_gst: number }[] = []
   const toInsert: { product_id: string; price_type: string; price_inc_gst: number; price_ex_gst: number; is_active: boolean }[] = []
 
-  for (const [groupName, priceIncGst] of Object.entries(prices)) {
-    const row = (existing ?? []).find(p =>
-      groupName === 'Retail' ? p.customer_group_id === null : false
-    ) ?? (existing ?? [])[0]
+  for (const [, priceIncGst] of Object.entries(prices)) {
+    const row = (existing ?? [])[0]
 
     const priceExGst = parseFloat((priceIncGst / (1 + gstRate)).toFixed(2))
 
@@ -845,8 +853,6 @@ export async function updateVariantPrices(
 export type PricePayload = {
   price_type: string
   price_inc_gst: number
-  customer_group_id?: string | null
-  warehouse_id?: string | null
   start_date?: string | null
   end_date?: string | null
   is_active?: boolean
@@ -859,8 +865,6 @@ export async function addVariantPrice(productId: string, payload: PricePayload) 
     price_type: payload.price_type,
     price_inc_gst: payload.price_inc_gst,
     price_ex_gst,
-    customer_group_id: payload.customer_group_id ?? null,
-    warehouse_id: payload.warehouse_id ?? null,
     start_date: payload.start_date ?? null,
     end_date: payload.end_date ?? null,
     is_active: payload.is_active ?? true,
@@ -881,276 +885,6 @@ export async function updatePrice(priceId: string, payload: Partial<PricePayload
 export async function deletePrice(priceId: string) {
   const { error } = await supabase.from('product_prices').delete().eq('price_id', priceId)
   if (error) throw error
-}
-
-// ============================================================
-// PRODUCT STOCK — per-warehouse + supplier breakdown
-// ============================================================
-export async function getProductStock(productId: string) {
-  // Fetch all active own-warehouses + existing product_stock rows in parallel
-  const [
-    { data: allWarehouses, error: wAllErr },
-    { data: stockRows, error: wErr },
-    { data: supplierStockRows },
-    { data: approvedMaps },
-  ] = await Promise.all([
-    supabase
-      .from('warehouses')
-      .select('warehouse_id, warehouse_name, is_own_warehouse, is_supplier_warehouse')
-      .eq('is_active', true)
-      .eq('is_own_warehouse', true),
-    supabase
-      .from('product_stock')
-      .select(`
-        stock_id,
-        warehouse_id,
-        available_stock,
-        reserved_stock,
-        incoming_stock,
-        in_transit_stock,
-        damaged_stock,
-        minimum_stock_level,
-        last_purchase_price,
-        last_stock_update
-      `)
-      .eq('product_id', productId),
-    supabase
-      .from('supplier_product_stock')
-      .select('supplier_id, available_stock, suppliers ( supplier_name )')
-      .eq('product_id', productId),
-    supabase
-      .from('supplier_product_map')
-      .select('supplier_id, supplier_stock, suppliers ( supplier_name )')
-      .eq('product_id', productId)
-      .eq('is_verified', true),
-  ])
-
-  if (wAllErr) throw wAllErr
-  if (wErr) throw wErr
-
-  // Build a lookup of existing stock rows by warehouse_id
-  const stockByWarehouse = new Map<string, typeof stockRows extends (infer T)[] | null ? T : never>()
-  for (const r of (stockRows ?? [])) stockByWarehouse.set(r.warehouse_id, r)
-
-  // Left-join: all own warehouses, with stock data if available (zeros if not)
-  const warehouses = (allWarehouses ?? []).map(w => {
-    const s = stockByWarehouse.get(w.warehouse_id)
-    return {
-      stock_id: s?.stock_id ?? null,
-      warehouse_id: w.warehouse_id,
-      warehouse_name: w.warehouse_name,
-      is_own_warehouse: w.is_own_warehouse,
-      available: s?.available_stock ?? 0,
-      reserved: s?.reserved_stock ?? 0,
-      incoming: s?.incoming_stock ?? 0,
-      in_transit: s?.in_transit_stock ?? 0,
-      damaged: s?.damaged_stock ?? 0,
-      minimum_stock_level: s?.minimum_stock_level ?? 0,
-      last_purchase_price: (s as Record<string, unknown> | undefined)?.last_purchase_price as number | null ?? null,
-      last_stock_update: s?.last_stock_update ?? null,
-    }
-  })
-
-  // Merge: use synced stock if available, else fall back to catalogue stock on approved map
-  const supplierMap = new Map<string, { supplier_name: string; stock: number }>()
-  for (const r of (supplierStockRows ?? [])) {
-    const sup = r.suppliers as unknown as { supplier_name: string } | null
-    const name = sup?.supplier_name ?? 'Unknown'
-    supplierMap.set(r.supplier_id, { supplier_name: name, stock: r.available_stock ?? 0 })
-  }
-  for (const m of (approvedMaps ?? [])) {
-    if (!supplierMap.has(m.supplier_id) && (m.supplier_stock ?? 0) > 0) {
-      const sup = m.suppliers as unknown as { supplier_name: string } | null
-      supplierMap.set(m.supplier_id, { supplier_name: sup?.supplier_name ?? 'Unknown', stock: m.supplier_stock ?? 0 })
-    }
-  }
-
-  const supplierContributions = [...supplierMap.entries()].map(([supplier_id, v]) => ({
-    supplier_id, supplier_name: v.supplier_name, stock: v.stock,
-  }))
-
-  const totalSupplierStock = supplierContributions.reduce((s, r) => s + r.stock, 0)
-
-  const suppliers = supplierContributions.map(r => ({
-    ...r,
-    percentage: totalSupplierStock > 0 ? Math.round((r.stock / totalSupplierStock) * 100) : 0,
-  }))
-
-  return { warehouses, suppliers, total_supplier_stock: totalSupplierStock }
-}
-
-export async function updateProductStock(
-  productId: string,
-  allocations: {
-    warehouse_id: string
-    available: number
-    reserved?: number
-    incoming?: number
-    in_transit?: number
-    damaged?: number
-    minimum_stock_level?: number
-  }[]
-) {
-  const now = new Date().toISOString()
-  const patches = allocations.map(alloc => {
-    const patch: Record<string, unknown> = {
-      product_id: productId,
-      warehouse_id: alloc.warehouse_id,
-      available_stock: alloc.available,
-      last_stock_update: now,
-    }
-    if (alloc.reserved !== undefined) patch.reserved_stock = alloc.reserved
-    if (alloc.incoming !== undefined) patch.incoming_stock = alloc.incoming
-    if (alloc.in_transit !== undefined) patch.in_transit_stock = alloc.in_transit
-    if (alloc.damaged !== undefined) patch.damaged_stock = alloc.damaged
-    if (alloc.minimum_stock_level !== undefined) patch.minimum_stock_level = alloc.minimum_stock_level
-    return patch
-  })
-
-  // Single batch upsert — was N sequential round-trips
-  const { error } = await supabase
-    .from('product_stock')
-    .upsert(patches, { onConflict: 'product_id,warehouse_id' })
-  if (error) throw error
-
-  // Recompute total_available_stock on the SKU
-  const { data: stockRows } = await supabase
-    .from('product_stock')
-    .select('available_stock')
-    .eq('product_id', productId)
-
-  const total = (stockRows ?? []).reduce((s, r) => s + (r.available_stock ?? 0), 0)
-  await supabase.from('skus').update({ total_available_stock: total }).eq('product_id', productId)
-
-  await redis?.del(`stock:${productId}`)
-}
-
-// ============================================================
-// PRODUCT-CENTRIC SUPPLIER MAPPINGS
-// Manage supplier_product_map rows from the product/variant side
-// ============================================================
-
-export async function getProductSupplierMappings(productId: string) {
-  // Get all supplier_product_map rows for this product
-  const { data: maps, error: mErr } = await supabase
-    .from('supplier_product_map')
-    .select(`
-      id,
-      supplier_id,
-      supplier_sku,
-      supplier_brand_name,
-      supplier_pattern_name,
-      supplier_size_raw,
-      supplier_price,
-      supplier_stock,
-      lead_time_days,
-      match_confidence,
-      is_verified,
-      last_updated,
-      created_at,
-      suppliers ( supplier_name, connection_type )
-    `)
-    .eq('product_id', productId)
-    .order('last_updated', { ascending: false, nullsFirst: false })
-
-  if (mErr) throw mErr
-
-  // Get synced stock for this product
-  const { data: stocks } = await supabase
-    .from('supplier_product_stock')
-    .select('supplier_id, available_stock, supplier_price, stock_last_updated, lead_time_days')
-    .eq('product_id', productId)
-
-  const stockMap = new Map((stocks ?? []).map(s => [s.supplier_id, s]))
-
-  return (maps ?? []).map(m => {
-    const sup = m.suppliers as unknown as { supplier_name: string; connection_type: string } | null
-    const synced = stockMap.get(m.supplier_id) ?? null
-    return {
-      id: m.id,
-      supplier_id: m.supplier_id,
-      supplier_name: sup?.supplier_name ?? null,
-      connection_type: sup?.connection_type ?? 'manual',
-      supplier_sku: m.supplier_sku,
-      supplier_price: m.supplier_price,
-      supplier_stock: m.supplier_stock,
-      lead_time_days: m.lead_time_days,
-      match_confidence: m.match_confidence,
-      is_verified: m.is_verified,
-      last_updated: m.last_updated,
-      synced_price: synced?.supplier_price ?? null,
-      synced_qty: synced?.available_stock ?? null,
-      synced_at: synced?.stock_last_updated ?? null,
-    }
-  })
-}
-
-export async function addProductSupplierMapping(productId: string, payload: {
-  supplier_id: string
-  supplier_sku: string
-  supplier_price?: number | null
-  supplier_stock?: number | null
-  lead_time_days?: number | null
-}) {
-  const { data, error } = await supabase
-    .from('supplier_product_map')
-    .upsert(
-      {
-        supplier_id: payload.supplier_id,
-        product_id: productId,
-        supplier_sku: payload.supplier_sku,
-        supplier_price: payload.supplier_price ?? null,
-        supplier_stock: payload.supplier_stock ?? 0,
-        lead_time_days: payload.lead_time_days ?? null,
-        match_confidence: 100,
-        is_verified: true,
-        last_updated: new Date().toISOString(),
-      },
-      { onConflict: 'supplier_id,product_id' }
-    )
-    .select('id, supplier_id')
-    .single()
-
-  if (error) throw error
-
-  // Enqueue stock sync immediately (catalogueSyncQueue imported via lazy require to avoid circular dep)
-  const { catalogueSyncQueue } = await import('../queues')
-  if (catalogueSyncQueue && data?.supplier_id) {
-    await catalogueSyncQueue.add('sync_supplier_stock', {
-      type: 'sync_supplier_stock',
-      supplier_id: data.supplier_id,
-      product_id: productId,
-    }, {
-      jobId: `sync_stock:${data.supplier_id}:${productId}`,
-    })
-  }
-
-  return data
-}
-
-export async function removeProductSupplierMapping(mapId: string) {
-  // Fetch supplier_id + product_id before deleting (needed to remove stock row)
-  const { data: row } = await supabase
-    .from('supplier_product_map')
-    .select('supplier_id, product_id')
-    .eq('id', mapId)
-    .maybeSingle()
-
-  const { error } = await supabase
-    .from('supplier_product_map')
-    .delete()
-    .eq('id', mapId)
-
-  if (error) throw error
-
-  // Remove the corresponding stock row so it no longer counts toward availability
-  if (row?.supplier_id && row?.product_id) {
-    await supabase
-      .from('supplier_product_stock')
-      .delete()
-      .eq('supplier_id', row.supplier_id)
-      .eq('product_id', row.product_id)
-  }
 }
 
 // ============================================================

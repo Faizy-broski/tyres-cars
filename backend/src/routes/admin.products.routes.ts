@@ -2,20 +2,12 @@ import { Router } from 'express'
 import { authMiddleware } from '../middleware/auth.middleware'
 import { requireRole } from '../middleware/role.middleware'
 import * as ctrl from '../controllers/admin.products.controller'
-import { csvUploadMiddleware } from '../controllers/admin.suppliers.controller'
 
 const router = Router()
 
 // All admin product routes require authentication + super_admin role
 router.use(authMiddleware)
 router.use(requireRole('super_admin'))
-
-// Bulk catalog import
-router.post('/import/skus',        csvUploadMiddleware, ctrl.importSkus)
-router.post('/import/brands',      csvUploadMiddleware, ctrl.importBrands)
-router.post('/import/categories',  csvUploadMiddleware, ctrl.importCategories)
-router.post('/import/patterns',    csvUploadMiddleware, ctrl.importPatterns)
-router.get('/import/jobs/:jobId',  ctrl.getImportJob)
 
 // Form metadata (brands, collections, categories for dropdowns)
 router.get('/meta', ctrl.getFormMeta)
@@ -79,14 +71,5 @@ router.delete('/:id/variants/:variantId/prices/:priceId', ctrl.deletePriceHandle
 // product_categories (SKU-level)
 router.get('/:id/variants/:variantId/categories',         ctrl.getProductCategories)
 router.put('/:id/variants/:variantId/categories',         ctrl.putProductCategories)
-
-// Stock distribution (StockTab)
-router.get('/:id/variants/:variantId/stock-detail',                    ctrl.getProductStock)
-router.put('/:id/variants/:variantId/stock-detail',                    ctrl.updateProductStock)
-
-// Product-centric supplier mappings (Section 5 of variant form)
-router.get('/:id/variants/:variantId/supplier-mappings',               ctrl.getProductSupplierMappings)
-router.post('/:id/variants/:variantId/supplier-mappings',              ctrl.addProductSupplierMapping)
-router.delete('/:id/variants/:variantId/supplier-mappings/:mapId',     ctrl.removeProductSupplierMapping)
 
 export default router

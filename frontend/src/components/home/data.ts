@@ -119,7 +119,6 @@ export const footerLinks = [
     title: "Customer Support", links: [
       { label: "Contact Us", href: "/contact" },
       { label: "Help Center", href: "#" },
-      { label: "Track My Order", href: "/track-order" },
       { label: "Return Policy", href: "#" },
       { label: "Privacy Policy", href: "#" },
     ],

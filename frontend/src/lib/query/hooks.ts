@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData, type QueryClie
 import { createClient } from '@/lib/supabase/client'
 import { fetchBackendJson } from '@/lib/backend-api'
 import { adminKeys } from './keys'
-import type { OrderListItem, CustomerListItem, Brand, Supplier, AdminFitmentCentreSummary, Category, Warehouse } from '@/types/admin.types'
+import type { OrderListItem, CustomerListItem, Brand, Category } from '@/types/admin.types'
 
 // Supabase caches the session in memory — calling this is essentially free after first auth.
 async function getToken(): Promise<string> {
@@ -230,84 +230,7 @@ export function useProductList(p: ProductListParams, opts?: { initialData?: Prod
   })
 }
 
-// ─── Fitment Centres ─────────────────────────────────────────────────────────
-
-export type CentreRow = {
-  fitment_id: string
-  business_name: string
-  partner_id: string
-  is_active: boolean
-  profiles?: { email?: string } | null
-}
-
-export function useFitmentCentreList(page = 1, opts?: { initialData?: CentreRow[] }) {
-  const qs = new URLSearchParams({ page: String(page) })
-  return useQuery({
-    queryKey: adminKeys.centreList(Object.fromEntries(qs)),
-    queryFn: async () => {
-      const res = await fetchBackendJson<{ data?: CentreRow[] } | CentreRow[]>(
-        `/api/admin/fitment-centres?${qs}`,
-        await getToken(),
-      )
-      return Array.isArray(res) ? res : (res.data ?? [])
-    },
-    staleTime: 2 * 60_000,
-    initialData: opts?.initialData,
-    initialDataUpdatedAt: opts?.initialData ? Date.now() : undefined,
-  })
-}
-
-// ─── Promotions ───────────────────────────────────────────────────────────────
-
-export interface PromotionRow {
-  promotion_id: string
-  title: string
-  brand_name: string | null
-  description: string | null
-  image_url: string | null
-  cta_url: string | null
-  discount_type: 'percent' | 'fixed_amount' | 'bundle'
-  discount_value: number
-  start_date: string
-  end_date: string
-  applies_to: string
-  target_id: string | null
-  minimum_qty: number
-  is_active: boolean
-  show_on_homepage: boolean
-  display_order: number
-  created_at: string
-  updated_at: string
-}
-
-export function usePromotionList(params: { page?: number; search?: string } = {}) {
-  const qs = new URLSearchParams()
-  if (params.page) qs.set('page', String(params.page))
-  if (params.search) qs.set('search', params.search)
-  return useQuery({
-    queryKey: adminKeys.promotionList(Object.fromEntries(qs)),
-    queryFn: async () => fetchBackendJson<{ data: PromotionRow[]; total: number }>(
-      `/api/admin/promotions?${qs}`,
-      await getToken(),
-    ),
-    placeholderData: keepPreviousData,
-    staleTime: 30_000,
-  })
-}
-
-export function usePromotionDetail(id: string) {
-  return useQuery({
-    queryKey: adminKeys.promotionDetail(id),
-    queryFn: async () => fetchBackendJson<PromotionRow>(
-      `/api/admin/promotions/${id}`,
-      await getToken(),
-    ),
-    enabled: !!id,
-    staleTime: 30_000,
-  })
-}
-
-// ─── Master-data hooks (brands, patterns, collections, suppliers) ─────────────
+// ─── Master-data hooks (brands, patterns, collections) ────────────────────────
 // These datasets change only on deliberate admin action — 10 min staleTime means
 // navigating away and back never triggers a refetch.
 
@@ -373,43 +296,11 @@ export function useAdminCollections() {
   })
 }
 
-export function useAdminFitmentCentres() {
-  return useQuery({
-    queryKey: adminKeys.fitmentCentres(),
-    queryFn: async () => {
-      const res = await fetchBackendJson<{ data: AdminFitmentCentreSummary[]; total: number }>(
-        '/api/admin/fitment-centres?page=1&limit=20', await getToken()
-      )
-      return res
-    },
-    staleTime: 5 * 60_000,
-  })
-}
-
 export function useAdminCategories() {
   return useQuery({
     queryKey: adminKeys.productCategories(),
     queryFn: async () => fetchBackendJson<Category[]>('/api/admin/products/categories', await getToken()),
     staleTime: MASTER_STALE,
-  })
-}
-
-export function useAdminWarehouses(showInactive = false) {
-  return useQuery({
-    queryKey: adminKeys.warehouseList(showInactive),
-    queryFn: async () => fetchBackendJson<Warehouse[]>(`/api/admin/orders/warehouses?all=${showInactive}`, await getToken()),
-    staleTime: MASTER_STALE,
-  })
-}
-
-export function useAdminSuppliers() {
-  return useQuery({
-    queryKey: adminKeys.supplierList({}),
-    queryFn: async () => {
-      const data = await fetchBackendJson<Supplier[] | { data?: Supplier[] }>('/api/admin/suppliers', await getToken())
-      return Array.isArray(data) ? data : (data.data ?? [])
-    },
-    staleTime: 5 * 60_000,
   })
 }
 
@@ -454,16 +345,4 @@ export async function prefetchProductsPage(qc: QueryClient) {
       },
     }),
   ])
-}
-
-export async function prefetchSuppliersPage(qc: QueryClient) {
-  const token = await getToken()
-  await qc.prefetchQuery({
-    queryKey: adminKeys.supplierList({}),
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const data = await fetchBackendJson<Supplier[] | { data?: Supplier[] }>('/api/admin/suppliers', token)
-      return Array.isArray(data) ? data : (data.data ?? [])
-    },
-  })
 }

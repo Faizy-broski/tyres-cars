@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { MapPin, Pencil, Plus, Trash2, Truck } from "lucide-react";
+import { Pencil, Plus, Trash2, Truck } from "lucide-react";
 import EditCustomerModal from "./EditCustomerModal";
 import CreateAddressModal from "./CreateAddressModal";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/table";
 import type {
   Address,
-  CustomerGroup,
   CustomerListItem,
 } from "@/types/admin.types";
 import type {
@@ -109,36 +108,11 @@ function OrderStatusBadge({ status }: { status: string }) {
   );
 }
 
-function DeliveryTypeCell({
-  orderType,
-  fitmentId,
-}: {
-  orderType: string | null;
-  fitmentId: string | null;
-}) {
-  if (!orderType || orderType === "home_delivery" || orderType === "shipping") {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700">
-        <Truck className="h-3.5 w-3.5 text-zinc-400" />
-        Home Delivery
-      </span>
-    );
-  }
-
+function DeliveryTypeCell() {
   return (
-    <span className="inline-flex flex-col gap-0.5 text-xs">
-      <span className="flex items-center gap-1 text-zinc-700">
-        <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400" />
-        Fitment Centre
-      </span>
-      {fitmentId && (
-        <Link
-          href={`/admin/fitters/${fitmentId}`}
-          className="pl-5 text-primary hover:underline"
-        >
-          #{fitmentId.slice(0, 8).toUpperCase()}
-        </Link>
-      )}
+    <span className="inline-flex items-center gap-1.5 text-xs text-zinc-700">
+      <Truck className="h-3.5 w-3.5 text-zinc-400" />
+      Home Delivery
     </span>
   );
 }
@@ -148,7 +122,6 @@ type Props = {
   customer: CustomerListItem;
   orders: CustomerOrder[];
   orderStats: OrderStats;
-  groups: CustomerGroup[];
   addresses: Address[];
   primaryAddress: Address | null;
   onRefresh?: () => void;
@@ -159,7 +132,6 @@ export default function CustomerDetailClient({
   customer,
   orders,
   orderStats,
-  groups,
   addresses,
   primaryAddress,
   onRefresh,
@@ -174,48 +146,6 @@ export default function CustomerDetailClient({
   const [addressPendingId, setAddressPendingId] = useState<string | null>(null);
   const [paymentFilter, setPaymentFilter] = useState<string | null>(null);
   const [fulfilFilter, setFulfilFilter] = useState<string | null>(null);
-  const [removingGroupId, setRemovingGroupId] = useState<string | null>(null);
-  const [localGroups, setLocalGroups] = useState(groups);
-
-  const [groupSearch, setGroupSearch]     = useState('');
-  const [groupResults, setGroupResults]   = useState<CustomerGroup[]>([]);
-  const [groupSearching, setGroupSearching] = useState(false);
-  const [addingGroupId, setAddingGroupId] = useState<string | null>(null);
-  const groupSearchRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function handleGroupSearchChange(q: string) {
-    setGroupSearch(q);
-    if (groupSearchRef.current) clearTimeout(groupSearchRef.current);
-    if (!q.trim()) { setGroupResults([]); return; }
-    groupSearchRef.current = setTimeout(async () => {
-      setGroupSearching(true);
-      try {
-        const res = await fetch(
-          `${BACKEND_API_URL}/api/admin/customers/groups/list?search=${encodeURIComponent(q)}&page=1`,
-          { headers: createBackendHeaders(accessToken) },
-        );
-        const json = await res.json();
-        setGroupResults((json.data ?? []).slice(0, 5));
-      } finally { setGroupSearching(false); }
-    }, 300);
-  }
-
-  async function handleAddToGroup(group: CustomerGroup) {
-    setAddingGroupId(group.group_id);
-    try {
-      const res = await fetch(
-        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/groups/${group.group_id}`,
-        { method: 'PUT', headers: createBackendHeaders(accessToken) },
-      );
-      if (!res.ok) throw new Error(await readBackendError(res, 'Failed to add to group'));
-      setLocalGroups(prev => prev.some(g => g.group_id === group.group_id) ? prev : [...prev, group]);
-      setGroupSearch('');
-      setGroupResults([]);
-      toastSuccess(`Added to "${group.group_name}"`)
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to add to group');
-    } finally { setAddingGroupId(null); }
-  }
 
   const fullName =
     [customer.first_name, customer.last_name].filter(Boolean).join(" ") || "—";
@@ -239,23 +169,6 @@ export default function CustomerDetailClient({
         .filter(Boolean)
         .join(", ")
     : "—";
-
-  async function handleRemoveFromGroup(groupId: string, groupName: string) {
-    setRemovingGroupId(groupId);
-    try {
-      const res = await fetch(
-        `${BACKEND_API_URL}/api/admin/customers/${customer.customer_id}/groups/${groupId}`,
-        { method: 'DELETE', headers: createBackendHeaders(accessToken) },
-      );
-      if (!res.ok) throw new Error(await readBackendError(res, 'Failed to remove from group'));
-      setLocalGroups(gs => gs.filter(g => g.group_id !== groupId));
-      toastSuccess(`Removed from "${groupName}"`)
-    } catch (err: unknown) {
-      toastError(err instanceof Error ? err.message : 'Failed to remove from group')
-    } finally {
-      setRemovingGroupId(null);
-    }
-  }
 
   async function handleDeleteAddress(addressId: string) {
     setAddressPendingId(addressId);
@@ -361,33 +274,6 @@ export default function CustomerDetailClient({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 divide-y divide-zinc-100 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-              <div className="px-5 py-4">
-                <p className="mb-1 text-xs text-zinc-400">Customer Type</p>
-                {customer.customer_type ? (
-                  <span className="inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium capitalize text-blue-700">
-                    {customer.customer_type}
-                  </span>
-                ) : <p className="text-sm text-zinc-400">—</p>}
-              </div>
-              <div className="px-5 py-4">
-                <p className="mb-1 text-xs text-zinc-400">Account Status</p>
-                {customer.account_status ? (
-                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                    customer.account_status === 'active'  ? 'bg-green-50 text-green-700' :
-                    customer.account_status === 'paused'  ? 'bg-amber-50 text-amber-700' :
-                    'bg-red-50 text-red-700'
-                  }`}>
-                    {customer.account_status}
-                  </span>
-                ) : <p className="text-sm text-zinc-400">—</p>}
-              </div>
-              <div className="px-5 py-4">
-                <p className="mb-1 text-xs text-zinc-400">Business</p>
-                <p className="text-sm text-zinc-800">{customer.business_name || "—"}</p>
-              </div>
-            </div>
-
             <div className="px-5 py-4">
               <p className="mb-1 text-xs text-zinc-400">Primary Address</p>
               <p className="text-sm text-zinc-800">{addressDisplay}</p>
@@ -478,10 +364,7 @@ export default function CustomerDetailClient({
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <DeliveryTypeCell
-                            orderType={order.order_type}
-                            fitmentId={order.fitment_id ?? null}
-                          />
+                          <DeliveryTypeCell />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {fmtDateTime(order.created_at)}
@@ -516,108 +399,6 @@ export default function CustomerDetailClient({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-zinc-200 bg-white">
-            <div className="border-b border-zinc-200 px-5 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-zinc-900">
-                  Customer Groups
-                  {localGroups.length > 0 && (
-                    <span className="ml-1.5 font-normal text-zinc-400">({localGroups.length})</span>
-                  )}
-                </h2>
-              </div>
-              <div className="relative">
-                <div className="relative max-w-xs">
-                  <svg className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-                  </svg>
-                  <input
-                    value={groupSearch}
-                    onChange={e => handleGroupSearchChange(e.target.value)}
-                    placeholder="Search groups to add…"
-                    className="w-full rounded-lg border border-zinc-300 py-1.5 pl-8 pr-3 text-xs focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                  />
-                  {groupSearching && (
-                    <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                      <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-300 border-t-primary" />
-                    </div>
-                  )}
-                </div>
-                {groupResults.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full max-w-xs rounded-lg border border-zinc-200 bg-white shadow-lg">
-                    {groupResults.map(g => {
-                      const already = localGroups.some(lg => lg.group_id === g.group_id);
-                      return (
-                        <div key={g.group_id} className="flex items-center justify-between px-3 py-2 hover:bg-zinc-50 first:rounded-t-lg last:rounded-b-lg">
-                          <div>
-                            <p className="text-sm font-medium text-zinc-800">{g.group_name}</p>
-                            <p className="text-xs text-zinc-400">{g.customer_count} member{g.customer_count !== 1 ? 's' : ''}</p>
-                          </div>
-                          {already ? (
-                            <span className="text-xs text-zinc-400">Already in group</span>
-                          ) : (
-                            <Button
-                              type="button"
-                              size="xs"
-                              disabled={addingGroupId === g.group_id}
-                              onClick={() => handleAddToGroup(g)}
-                            >
-                              {addingGroupId === g.group_id ? 'Adding…' : 'Add'}
-                            </Button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-            <Table className="w-full text-sm">
-              <TableHeader>
-                <TableRow className="border-b border-zinc-200 bg-zinc-50 hover:bg-zinc-50 odd:bg-zinc-50 even:bg-zinc-50">
-                  <TableHead>Group Name</TableHead>
-                  <TableHead>Members</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead className="w-20" />
-                </TableRow>
-              </TableHeader>
-              <TableBody className="divide-y divide-zinc-200">
-                {localGroups.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={4} className="py-8 text-center text-muted-foreground">
-                      Not in any group.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  localGroups.map((group) => (
-                    <TableRow key={group.group_id}>
-                      <TableCell className="font-medium text-foreground">
-                        <Link href={`/admin/customers/groups/${group.group_id}`} className="hover:underline">
-                          {group.group_name}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{group.customer_count}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{fmtDate(group.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          disabled={removingGroupId === group.group_id}
-                          onClick={() => handleRemoveFromGroup(group.group_id, group.group_name)}
-                          className="text-zinc-400 hover:bg-red-50 hover:text-red-600"
-                        >
-                          {removingGroupId === group.group_id ? 'Removing…' : 'Remove'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-            </div>
-          </div>
         </div>
 
         <div className="w-full flex-shrink-0 space-y-4 lg:w-64">
@@ -652,28 +433,6 @@ export default function CustomerDetailClient({
               )}
             </div>
           </div>
-
-          {(customer.credit_limit != null || customer.payment_terms) && (
-            <div className="rounded-xl border border-zinc-200 bg-white p-5">
-              <h3 className="mb-4 text-sm font-semibold text-zinc-900">Account Terms</h3>
-              <div className="space-y-3">
-                {customer.credit_limit != null && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Credit Limit</span>
-                    <span className="text-sm font-semibold text-zinc-900">
-                      {fmtMoney(customer.credit_limit)}
-                    </span>
-                  </div>
-                )}
-                {customer.payment_terms && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Payment Terms</span>
-                    <span className="text-sm text-zinc-700">{customer.payment_terms}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           <div className="rounded-xl border border-zinc-200 bg-white p-4">
             <div className="mb-3 flex items-center justify-between gap-3">

@@ -1,6 +1,5 @@
 import { Router } from 'express'
 import { supabase as db } from '../services/supabase.service'
-import { evaluateCartPromotions } from '../services/promotions.service'
 
 const router = Router()
 
@@ -40,18 +39,27 @@ router.post('/validate', async (req, res, next) => {
 })
 
 // POST /api/cart/prices
-// Returns promotion-adjusted effective price per product_id.
-// Body: { items: [{ product_id, quantity, unit_price }] }
+// Returns the live server-side retail price per product_id (never trust client-supplied prices).
+// Body: { items: [{ product_id }] }
 router.post('/prices', async (req, res, next) => {
   try {
-    const items: { product_id: string; quantity: number; unit_price: number }[] = req.body.items ?? []
+    const items: { product_id: string }[] = req.body.items ?? []
     if (!items.length) return res.json({ prices: {} })
 
-    const discounts = await evaluateCartPromotions(items)
+    const productIds = items.map(i => i.product_id)
+    const { data, error } = await db
+      .from('skus')
+      .select('product_id, product_prices(price_type, price_inc_gst, is_active)')
+      .in('product_id', productIds)
+
+    if (error) return next(error)
+
     const prices: Record<string, number> = {}
-    for (const item of items) {
-      prices[item.product_id] = discounts.get(item.product_id) ?? item.unit_price
+    for (const sku of (data ?? []) as { product_id: string; product_prices: { price_type: string; price_inc_gst: number; is_active: boolean }[] }[]) {
+      const retail = (sku.product_prices ?? []).find(p => p.is_active && p.price_type === 'retail')
+      if (retail) prices[sku.product_id] = Number(retail.price_inc_gst)
     }
+
     res.json({ prices })
   } catch (err) { next(err) }
 })

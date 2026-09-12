@@ -113,7 +113,7 @@ export default function CategoriesTab({ collections, categories, appliedPattern 
               {...register('applicationType')}
               className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
             >
-              <option value="">Tire, wheels ...</option>
+              <option value="">Select a type...</option>
               {APPLICATION_TYPES.map(t => (
                 <option key={t.value} value={t.value}>{t.label}</option>
               ))}
@@ -156,10 +156,10 @@ export default function CategoriesTab({ collections, categories, appliedPattern 
           </div> */}
         </div>
 
-        {/* Category (vehicle category — multi-select search only) */}
+        {/* Category (multi-select search only) */}
         <div className="mt-4">
           <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
-          <p className="text-xs text-zinc-400 mb-2">Vehicle category this tyre fits</p>
+          <p className="text-xs text-zinc-400 mb-2">Category this tyre belongs to</p>
           <CreatableMultiCombobox
             options={categories.map(cat => ({ value: cat.category_id, label: cat.category_name }))}
             value={selectedCats}

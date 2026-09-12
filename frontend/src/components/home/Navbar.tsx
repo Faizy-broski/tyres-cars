@@ -13,11 +13,8 @@ import GlobalSearchBar from "./GlobalSearchBar";
 import MobileMenu from "./MobileMenu";
 
 const navLinks = [
-  // { label: "Services", href: "/services" },
   { label: "About Us", href: "/about" },
-  { label: "Promotions", href: "/promotions" },
   { label: "Contact", href: "/contact" },
-  { label: "Track Order", href: "/track-order" },
 ];
 
 export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) {

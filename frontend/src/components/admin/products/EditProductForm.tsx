@@ -116,14 +116,13 @@ interface Props {
   brands:       { brand_id: string; brand_name: string }[]
   collections:  { collection_id: string; collection_name: string }[]
   categories:   { category_id: string; category_name: string; category_type: string }[]
-  warehouses:   { warehouse_id: string; warehouse_name: string }[]
   patterns?:    { pattern_id: string; pattern_name: string; brand_id: string }[]
   existingSkus?: SkuCodeRow[]
   patternInfo?:  { name: string; brandName: string }
 }
 
 export default function EditProductForm({
-  patternId, initialData, brands, collections, categories, warehouses, patterns = [],
+  patternId, initialData, brands, collections, categories, patterns = [],
   existingSkus = [], patternInfo,
 }: Props) {
   const router      = useRouter()
@@ -189,8 +188,6 @@ export default function EditProductForm({
 
       // 2. PATCH pricing/inventory for every sibling size shown in the Pricing & Inventory table
       //    (existingSkus and values.pricing are index-aligned — both built from the same SKU list)
-      //    Warehouse selection is manual per row — a row left without one simply doesn't
-      //    get its stock/inventory saved yet (price/compare-at/cost still save normally).
       async function saveRow(i: number) {
         const variantId = existingSkus[i]?.product_id
         const p = values.pricing?.[i]
@@ -213,17 +210,14 @@ export default function EditProductForm({
                 body: JSON.stringify({ prices: { Retail: p.priceIncGst } }),
               })
             : null,
-          p.warehouseId
-            ? fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/stock`, {
-                method: 'PATCH',
-                headers,
-                body: JSON.stringify({
-                  warehouseId: p.warehouseId,
-                  availableStock: p.inventory ?? 0,
-                  lowStockAlert: p.lowStockAlert,
-                }),
-              })
-            : null,
+          fetch(`${API}/api/admin/products/${patternId}/variants/${variantId}/stock`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({
+              availableStock: p.inventory ?? 0,
+              lowStockAlert: p.lowStockAlert,
+            }),
+          }),
         ])
 
         if (!skuRes.ok) {
@@ -263,7 +257,6 @@ export default function EditProductForm({
         brands={brands}
         patterns={patterns}
         categories={categories}
-        warehouses={warehouses}
         submitting={submitting}
         onCancel={() => router.push(`/admin/products/${patternId}`)}
         onSave={methods.handleSubmit(handleSave, handleInvalid)}
@@ -278,7 +271,7 @@ export default function EditProductForm({
 // ── Inner body ────────────────────────────────────────────────────────────────
 
 function FormBody({
-  patternId, autoSlug, brands, patterns, categories, warehouses,
+  patternId, autoSlug, brands, patterns, categories,
   submitting, onCancel, onSave, productName, existingSkus = [], patternInfo,
 }: {
   patternId:   string
@@ -286,7 +279,6 @@ function FormBody({
   brands:      { brand_id: string; brand_name: string }[]
   patterns:    { pattern_id: string; pattern_name: string; brand_id: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
-  warehouses:  { warehouse_id: string; warehouse_name: string }[]
   submitting:  boolean
   onCancel:    () => void
   onSave:      () => void
@@ -766,7 +758,7 @@ function FormBody({
                 {...register('applicationType')}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
               >
-                <option value="">Tire, wheels…</option>
+                <option value="">Select a type…</option>
                 {APPLICATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
@@ -794,7 +786,7 @@ function FormBody({
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
-            <p className="text-xs text-zinc-400 mb-2">Vehicle category this tyre fits</p>
+            <p className="text-xs text-zinc-400 mb-2">Category this tyre belongs to</p>
             <CreatableMultiCombobox
               options={categories.map(cat => ({ value: cat.category_id, label: cat.category_name }))}
               value={selectedCats}
@@ -1054,7 +1046,7 @@ function FormBody({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-zinc-200 bg-zinc-50 sticky top-0 z-10">
-                      {['Tire Size', 'SKU', 'Price (inc. GST) *', 'Compare at', 'Cost', 'Margin', 'Inventory', 'Warehouse', 'Low Stock Alert'].map(h => (
+                      {['Tire Size', 'SKU', 'Price (inc. GST) *', 'Compare at', 'Cost', 'Margin', 'Inventory', 'Low Stock Alert'].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-wide whitespace-nowrap bg-zinc-50">{h}</th>
                       ))}
                     </tr>
@@ -1099,12 +1091,6 @@ function FormBody({
                           </td>
                           <td className="px-4 py-3">
                             <input type="number" min="0" {...register(`pricing.${index}.inventory`, { valueAsNumber: true })} className="w-20 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="0" />
-                          </td>
-                          <td className="px-4 py-3">
-                            <select {...register(`pricing.${index}.warehouseId`)} className="rounded border border-zinc-200 px-2 py-1 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30">
-                              <option value="">Select warehouse</option>
-                              {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
-                            </select>
                           </td>
                           <td className="px-4 py-3">
                             <input type="number" min="0" {...register(`pricing.${index}.lowStockAlert`, { valueAsNumber: true })} className="w-16 rounded border border-zinc-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="10" />

@@ -19,25 +19,21 @@ export async function getCustomerStats() {
 export async function listCustomers(opts: {
   search?: string
   accountType?: 'guest' | 'registered'
-  customerType?: string
-  status?: string
   page?: number
 }) {
-  const { search = '', accountType, customerType, status, page = 1 } = opts
+  const { search = '', accountType, page = 1 } = opts
   const from = (page - 1) * PAGE_SIZE
   const to   = from + PAGE_SIZE - 1
 
   let query = supabaseAdmin
     .from('customers')
-    .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status', { count: 'exact' })
+    .select('customer_id, email, first_name, last_name, phone, created_at, profile_id', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(from, to)
 
   if (search)       query = query.or(`email.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`)
   if (accountType === 'guest')      query = query.is('profile_id', null)
   if (accountType === 'registered') query = query.not('profile_id', 'is', null)
-  if (customerType) query = (query as any).eq('customer_type', customerType)
-  if (status)       query = (query as any).eq('account_status', status)
 
   const { data, error, count } = await query
 
@@ -100,10 +96,10 @@ export async function listCustomers(opts: {
 export async function getCustomer(customerId: string) {
   const supabase = supabaseAdmin
 
-  const [customerRes, ordersRes, groupsRes, addressesRes] = await Promise.all([
+  const [customerRes, ordersRes, addressesRes] = await Promise.all([
     supabase
       .from('customers')
-      .select('customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status, credit_limit, payment_terms, billing_address_id, customer_group_id')
+      .select('customer_id, email, first_name, last_name, phone, created_at, profile_id')
       .eq('customer_id', customerId)
       .single(),
 
@@ -111,8 +107,7 @@ export async function getCustomer(customerId: string) {
       .from('orders')
       .select(`
         order_id, order_number, created_at,
-        payment_status, fulfillment_status, total_amount,
-        delivery_method,
+        payment_status, order_status, total_amount,
         order_items ( product_id )
       `)
       .eq('customer_id', customerId)
@@ -120,13 +115,8 @@ export async function getCustomer(customerId: string) {
       .limit(PAGE_SIZE),
 
     supabase
-      .from('customer_group_members')
-      .select('customer_groups ( group_id, group_name, customer_count, created_at, updated_at )')
-      .eq('customer_id', customerId),
-
-    supabase
       .from('addresses')
-      .select('address_id, address_name, address_line1, address_line_1, address_line2, address_line_2, city, suburb, state, postal_code, postcode, country, company, phone, is_default, owner_type, owner_id, latitude, longitude')
+      .select('address_id, address_name, address_line1, address_line_1, address_line2, address_line_2, city, suburb, state, postal_code, postcode, country, company, phone, is_default, owner_type, owner_id')
       .eq('owner_type', 'customer')
       .eq('owner_id', customerId)
       .order('is_default', { ascending: false })
@@ -140,15 +130,10 @@ export async function getCustomer(customerId: string) {
     item_count: Array.isArray(o.order_items) ? o.order_items.length : 0,
   }))
 
-  const groups = (groupsRes.data ?? [])
-    .map((m: any) => m.customer_groups)
-    .filter(Boolean)
-
   return {
     data: {
       ...customerRes.data,
       orders,
-      groups,
       addresses: addressesRes.data ?? [],
     },
     error: null,
@@ -159,28 +144,14 @@ export async function createCustomer(payload: {
   email: string
   firstName?: string
   lastName?: string
-  company?: string
   phone?: string
-  customerType?: string
-  accountStatus?: string
-  customerGroupId?: string | null
-  billingAddressId?: string | null
-  creditLimit?: number | null
-  paymentTerms?: string | null
 }) {
   return supabaseAdmin.from('customers').insert({
-    email:              payload.email,
-    first_name:         payload.firstName      ?? null,
-    last_name:          payload.lastName       ?? null,
-    business_name:      payload.company        ?? null,
-    phone:              payload.phone          ?? null,
-    customer_type:      payload.customerType   ?? 'retail',
-    account_status:     payload.accountStatus  ?? 'active',
-    customer_group_id:  payload.customerGroupId  ?? null,
-    billing_address_id: payload.billingAddressId ?? null,
-    credit_limit:       payload.creditLimit    ?? null,
-    payment_terms:      payload.paymentTerms   ?? null,
-    profile_id:         null,
+    email:      payload.email,
+    first_name: payload.firstName ?? null,
+    last_name:  payload.lastName  ?? null,
+    phone:      payload.phone     ?? null,
+    profile_id: null,
   }).select('customer_id').single()
 }
 
@@ -188,27 +159,13 @@ export async function updateCustomer(customerId: string, patch: {
   email?: string
   firstName?: string
   lastName?: string
-  company?: string
   phone?: string
-  customerType?: string
-  accountStatus?: string
-  creditLimit?: number | null
-  paymentTerms?: string | null
-  customerGroupId?: string | null
-  billingAddressId?: string | null
 }) {
   return supabaseAdmin.from('customers').update({
-    ...(patch.email            !== undefined && { email:              patch.email }),
-    ...(patch.firstName        !== undefined && { first_name:         patch.firstName }),
-    ...(patch.lastName         !== undefined && { last_name:          patch.lastName }),
-    ...(patch.company          !== undefined && { business_name:      patch.company }),
-    ...(patch.phone            !== undefined && { phone:              patch.phone }),
-    ...(patch.customerType     !== undefined && { customer_type:      patch.customerType }),
-    ...(patch.accountStatus    !== undefined && { account_status:     patch.accountStatus }),
-    ...(patch.creditLimit      !== undefined && { credit_limit:       patch.creditLimit }),
-    ...(patch.paymentTerms     !== undefined && { payment_terms:      patch.paymentTerms }),
-    ...(patch.customerGroupId  !== undefined && { customer_group_id:  patch.customerGroupId }),
-    ...(patch.billingAddressId !== undefined && { billing_address_id: patch.billingAddressId }),
+    ...(patch.email     !== undefined && { email:      patch.email }),
+    ...(patch.firstName !== undefined && { first_name: patch.firstName }),
+    ...(patch.lastName  !== undefined && { last_name:  patch.lastName }),
+    ...(patch.phone     !== undefined && { phone:      patch.phone }),
   }).eq('customer_id', customerId)
 }
 
@@ -231,8 +188,6 @@ export async function createAddress(customerId: string, payload: {
   company?: string
   phone?: string
   isDefault?: boolean
-  latitude?: number | null
-  longitude?: number | null
 }) {
   const suburb   = payload.suburb    ?? payload.city       ?? null
   const postcode = payload.postcode  ?? payload.postalCode ?? null
@@ -258,8 +213,6 @@ export async function createAddress(customerId: string, payload: {
     company:        payload.company   ?? null,
     phone:          payload.phone     ?? null,
     is_default:     payload.isDefault ?? false,
-    latitude:       payload.latitude  ?? null,
-    longitude:      payload.longitude ?? null,
   }).select('address_id').single()
 }
 
@@ -268,117 +221,4 @@ export async function deleteAddress(customerId: string, addressId: string) {
     .eq('address_id', addressId)
     .eq('owner_type', 'customer')
     .eq('owner_id', customerId)
-}
-
-// ── Group membership ────────────────────────────────────────────────────────
-
-export async function addCustomerToGroup(customerId: string, groupId: string) {
-  return supabaseAdmin.from('customer_group_members').upsert(
-    { customer_id: customerId, group_id: groupId },
-    { onConflict: 'customer_id,group_id', ignoreDuplicates: true }
-  )
-}
-
-export async function removeCustomerFromGroup(customerId: string, groupId: string) {
-  return supabaseAdmin.from('customer_group_members').delete()
-    .eq('customer_id', customerId)
-    .eq('group_id', groupId)
-}
-
-// ── Customer Groups ─────────────────────────────────────────────────────────
-
-export async function listCustomerGroups(opts: { search?: string; page?: number }) {
-  const { search = '', page = 1 } = opts
-  const from = (page - 1) * PAGE_SIZE
-  const to   = from + PAGE_SIZE - 1
-
-  let query = supabaseAdmin
-    .from('customer_groups')
-    .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at', { count: 'exact' })
-    .order('customer_count', { ascending: false })
-    .range(from, to)
-
-  if (search) query = query.ilike('group_name', `%${search}%`)
-
-  const { data, error, count } = await query
-  return { data, error, count }
-}
-
-export async function getCustomerGroup(groupId: string) {
-  const [groupRes, membersRes] = await Promise.all([
-    supabaseAdmin
-      .from('customer_groups')
-      .select('group_id, group_name, description, discount_type, discount_value, price_type, customer_count, created_at, updated_at')
-      .eq('group_id', groupId)
-      .single(),
-
-    supabaseAdmin
-      .from('customer_group_members')
-      .select(`
-        customers (
-          customer_id, email, first_name, last_name, business_name, phone, created_at, profile_id, customer_type, account_status
-        )
-      `)
-      .eq('group_id', groupId)
-      .order('added_at', { ascending: false })
-      .limit(PAGE_SIZE),
-  ])
-
-  if (groupRes.error || !groupRes.data) return { data: null, error: groupRes.error }
-
-  const members = (membersRes.data ?? [])
-    .map((m: any) => m.customers)
-    .filter(Boolean)
-
-  return { data: { ...groupRes.data, members }, error: null }
-}
-
-export async function createCustomerGroup(payload: {
-  name: string
-  description?: string | null
-  discount_type?: string | null
-  discount_value?: number | null
-  price_type?: string | null
-}) {
-  return supabaseAdmin.from('customer_groups').insert({
-    group_name:     payload.name,
-    description:    payload.description    ?? null,
-    discount_type:  payload.discount_type  ?? null,
-    discount_value: payload.discount_value ?? null,
-    price_type:     payload.price_type     ?? null,
-  }).select('group_id, group_name').single()
-}
-
-export async function updateCustomerGroup(groupId: string, payload: {
-  name: string
-  description?: string | null
-  discount_type?: string | null
-  discount_value?: number | null
-  price_type?: string | null
-}) {
-  return supabaseAdmin.from('customer_groups').update({
-    group_name:     payload.name,
-    description:    payload.description    ?? null,
-    discount_type:  payload.discount_type  ?? null,
-    discount_value: payload.discount_value ?? null,
-    price_type:     payload.price_type     ?? null,
-    updated_at:     new Date().toISOString(),
-  }).eq('group_id', groupId)
-}
-
-export async function deleteCustomerGroup(groupId: string) {
-  return supabaseAdmin.from('customer_groups').delete().eq('group_id', groupId)
-}
-
-export async function addMemberToGroup(groupId: string, customerId: string) {
-  return supabaseAdmin.from('customer_group_members').upsert(
-    { customer_id: customerId, group_id: groupId },
-    { onConflict: 'customer_id,group_id', ignoreDuplicates: true }
-  )
-}
-
-export async function removeMemberFromGroup(groupId: string, customerId: string) {
-  return supabaseAdmin.from('customer_group_members').delete()
-    .eq('group_id', groupId)
-    .eq('customer_id', customerId)
 }

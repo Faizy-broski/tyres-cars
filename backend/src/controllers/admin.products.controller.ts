@@ -1,8 +1,5 @@
 import type { Request, Response, NextFunction } from 'express'
 import * as ProductsService from '../services/products.service'
-import Papa from 'papaparse'
-import { randomUUID } from 'crypto'
-import { enqueueCatalogImport, getCatalogImportJob } from '../services/admin.catalog-import.service'
 
 type P = Record<string, string>
 
@@ -94,7 +91,6 @@ export async function updateVariantStock(req: Request, res: Response, next: Next
   try {
     await ProductsService.updateVariantStock(
       String((req.params as P).variantId),
-      req.body.warehouseId,
       req.body.availableStock,
       req.body.lowStockAlert
     )
@@ -149,58 +145,6 @@ export async function updatePriceHandler(req: Request, res: Response, next: Next
 export async function deletePriceHandler(req: Request, res: Response, next: NextFunction) {
   try {
     await ProductsService.deletePrice(String((req.params as P).priceId))
-    res.json({ success: true })
-  } catch (err) { next(err) }
-}
-
-export async function getProductStock(req: Request, res: Response, next: NextFunction) {
-  try {
-    const result = await ProductsService.getProductStock(String((req.params as P).variantId))
-    res.json(result)
-  } catch (err) { next(err) }
-}
-
-export async function updateProductStock(req: Request, res: Response, next: NextFunction) {
-  try {
-    const allocations = req.body as { warehouse_id: string; available: number }[]
-    if (!Array.isArray(allocations)) {
-      res.status(400).json({ error: 'Body must be an array of { warehouse_id, available }' })
-      return
-    }
-    await ProductsService.updateProductStock(String((req.params as P).variantId), allocations)
-    res.json({ success: true })
-  } catch (err) { next(err) }
-}
-
-// ============================================================
-// PRODUCT-CENTRIC SUPPLIER MAPPINGS
-// ============================================================
-
-export async function getProductSupplierMappings(req: Request, res: Response, next: NextFunction) {
-  try {
-    const data = await ProductsService.getProductSupplierMappings(String((req.params as P).variantId))
-    res.json(data)
-  } catch (err) { next(err) }
-}
-
-export async function addProductSupplierMapping(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { supplier_id, supplier_sku, supplier_price, supplier_stock, lead_time_days } = req.body
-    if (!supplier_id || !supplier_sku) {
-      res.status(400).json({ error: 'supplier_id and supplier_sku are required' })
-      return
-    }
-    const data = await ProductsService.addProductSupplierMapping(
-      String((req.params as P).variantId),
-      { supplier_id, supplier_sku, supplier_price, supplier_stock, lead_time_days }
-    )
-    res.status(201).json(data)
-  } catch (err) { next(err) }
-}
-
-export async function removeProductSupplierMapping(req: Request, res: Response, next: NextFunction) {
-  try {
-    await ProductsService.removeProductSupplierMapping(String((req.params as P).mapId))
     res.json({ success: true })
   } catch (err) { next(err) }
 }
@@ -383,66 +327,5 @@ export async function putProductCategories(req: Request, res: Response, next: Ne
     const { categoryIds } = req.body as { categoryIds: string[] }
     await ProductsService.setProductCategories((req.params as P).variantId, categoryIds ?? [])
     res.json({ success: true })
-  } catch (err) { next(err) }
-}
-
-
-// ── Bulk catalog import ───────────────────────────────────────────────────────
-
-function parseCsvFromBuffer(buffer: Buffer): Record<string, string>[] {
-  const text = buffer.toString('utf8')
-  const { data, errors } = Papa.parse<Record<string, string>>(text, {
-    header:          true,
-    skipEmptyLines:  true,
-    transformHeader: (h: string) => h.trim(),
-  })
-  if (errors.length && data.length === 0) throw new Error(errors[0].message)
-  return data
-}
-
-export async function importSkus(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
-    const rows      = parseCsvFromBuffer(req.file.buffer)
-    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
-    const jobId     = await enqueueCatalogImport('skus', rows, columnMap, randomUUID())
-    res.status(202).json({ jobId })
-  } catch (err) { next(err) }
-}
-
-export async function importBrands(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
-    const rows      = parseCsvFromBuffer(req.file.buffer)
-    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
-    const jobId     = await enqueueCatalogImport('brands', rows, columnMap, randomUUID())
-    res.status(202).json({ jobId })
-  } catch (err) { next(err) }
-}
-
-export async function importCategories(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
-    const rows      = parseCsvFromBuffer(req.file.buffer)
-    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
-    const jobId     = await enqueueCatalogImport('categories', rows, columnMap, randomUUID())
-    res.status(202).json({ jobId })
-  } catch (err) { next(err) }
-}
-
-export async function importPatterns(req: Request, res: Response, next: NextFunction) {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No CSV file uploaded' })
-    const rows      = parseCsvFromBuffer(req.file.buffer)
-    const columnMap = JSON.parse(req.body.column_map ?? '{}') as Record<string, string>
-    const jobId     = await enqueueCatalogImport('patterns', rows, columnMap, randomUUID())
-    res.status(202).json({ jobId })
-  } catch (err) { next(err) }
-}
-
-export async function getImportJob(req: Request, res: Response, next: NextFunction) {
-  try {
-    const status = await getCatalogImportJob((req.params as Record<string, string>).jobId)
-    res.json(status)
   } catch (err) { next(err) }
 }

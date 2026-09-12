@@ -17,7 +17,6 @@ export default async function AccountLayout({ children }: { children: ReactNode 
 
   const role = (profile as any)?.role
   if (role === 'super_admin') redirect('/admin/dashboard')
-  if (role === 'fitter')      redirect('/fitter/dashboard')
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">

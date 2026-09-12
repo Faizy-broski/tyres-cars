@@ -109,11 +109,10 @@ type Props = {
   brands:      { brand_id: string; brand_name: string }[]
   collections: { collection_id: string; collection_name: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
-  warehouses:  { warehouse_id: string; warehouse_name: string }[]
   patterns?:   { pattern_id: string; pattern_name: string; brand_id: string }[]
 }
 
-export default function CreateProductForm({ brands, collections, categories, warehouses, patterns = [] }: Props) {
+export default function CreateProductForm({ brands, collections, categories, patterns = [] }: Props) {
   const router    = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
@@ -137,7 +136,7 @@ export default function CreateProductForm({ brands, collections, categories, war
         eMark: '', dotCode: '', utqg: '', variantImages: [], status: 'active' as const,
         replacementProductId: '',
       }],
-      pricing: [{ priceIncGst: 0, compareAtPrice: undefined, costPrice: undefined, inventory: 0, lowStockAlert: 10, warehouseId: '' }],
+      pricing: [{ priceIncGst: 0, compareAtPrice: undefined, costPrice: undefined, inventory: 0, lowStockAlert: 10 }],
     },
   })
 
@@ -205,7 +204,6 @@ export default function CreateProductForm({ brands, collections, categories, war
         brands={brands}
         patterns={patterns}
         categories={categories}
-        warehouses={warehouses}
         submitting={submitting}
         onCancel={() => router.back()}
         onPublish={methods.handleSubmit(handlePublish, handleInvalid)}
@@ -217,13 +215,12 @@ export default function CreateProductForm({ brands, collections, categories, war
 // ── Inner body — reads form context ──────────────────────────────────────────
 
 function FormBody({
-  autoSlug, brands, patterns, categories, warehouses, submitting, onCancel, onPublish,
+  autoSlug, brands, patterns, categories, submitting, onCancel, onPublish,
 }: {
   autoSlug: string
   brands:      { brand_id: string; brand_name: string }[]
   patterns:    { pattern_id: string; pattern_name: string; brand_id: string }[]
   categories:  { category_id: string; category_name: string; category_type: string }[]
-  warehouses:  { warehouse_id: string; warehouse_name: string }[]
   submitting: boolean
   onCancel: () => void
   onPublish: () => void
@@ -665,7 +662,7 @@ function FormBody({
                 {...register('applicationType')}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white"
               >
-                <option value="">Tire, wheels…</option>
+                <option value="">Select a type…</option>
                 {APPLICATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </div>
@@ -693,7 +690,7 @@ function FormBody({
 
           <div className="mt-4">
             <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
-            <p className="text-xs text-zinc-400 mb-2">Vehicle category this tyre fits</p>
+            <p className="text-xs text-zinc-400 mb-2">Category this tyre belongs to</p>
             <CreatableMultiCombobox
               options={categories.map(cat => ({ value: cat.category_id, label: cat.category_name }))}
               value={selectedCats}
@@ -1035,18 +1032,6 @@ function FormBody({
             </table>
           </div>
 
-          {warehouses.length > 0 && (
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <label className="text-sm text-zinc-600">Assign inventory to warehouse:</label>
-              <select
-                onChange={e => variants.forEach((_, i) => setValue(`pricing.${i}.warehouseId`, e.target.value, { shouldDirty: true }))}
-                className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-              >
-                <option value="">Select warehouse</option>
-                {warehouses.map(w => <option key={w.warehouse_id} value={w.warehouse_id}>{w.warehouse_name}</option>)}
-              </select>
-            </div>
-          )}
         </section>
 
         {/* ══════════════════════════════════════════════════════════════
