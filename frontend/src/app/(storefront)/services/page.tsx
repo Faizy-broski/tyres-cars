@@ -38,7 +38,7 @@ const services = [
 
 const steps = [
   { id: '01', title: 'Choose Your Service', desc: 'Browse tyres or select a valeting package that fits your vehicle and needs.' },
-  { id: '02', title: 'Order Online', desc: 'Add to cart, enter your delivery address, and pay securely at checkout.' },
+  { id: '02', title: 'Book Online', desc: 'Send a booking request with your preferred date and we\'ll confirm it with you.' },
   { id: '03', title: 'Sit Back & Relax', desc: 'Our certified team handles the rest, so you drive away safe, sorted, and spotless.' },
 ]
 
@@ -125,14 +125,14 @@ export default function ServicesPage() {
               Book Your Service Today
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base font-medium text-zinc-900/80 sm:text-lg">
-              Shop tyres with fitting included, or reach out and our team will help you choose the right service.
+              Book your fitting or valet online, or reach out and our team will help you choose the right service.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                href="/tyres"
+                href="/book"
                 className="h-12 rounded-full bg-zinc-950 px-8 font-oswald text-lg font-bold italic text-white transition-all duration-200 hover:bg-zinc-800 flex items-center"
               >
-                Shop Tyres
+                Book Now
               </Link>
               <Link
                 href="/contact"

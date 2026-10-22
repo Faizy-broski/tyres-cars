@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { createClient } from "@/lib/supabase/client";
+import { ECOMMERCE_ENABLED } from "@/lib/features";
 import {
   prefetchDashboardPage,
   prefetchOrdersPage,
@@ -27,7 +28,7 @@ import {
 
 const nav = [
   { label: "Dashboard",       href: "/admin/dashboard",       icon: Gauge },
-  { label: "Orders",          href: "/admin/orders",           icon: ClipboardList },
+  ...(ECOMMERCE_ENABLED ? [{ label: "Orders", href: "/admin/orders", icon: ClipboardList }] : []),
   {
     label: "Products", href: "/admin/products", icon: LayoutDashboard,
     children: [

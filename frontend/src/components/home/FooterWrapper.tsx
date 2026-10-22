@@ -1,7 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import FooterSection, { type FooterTopSection } from './FooterSection'
+import { ECOMMERCE_ENABLED } from '@/lib/features'
 
 export default async function FooterWrapper() {
+  // Tyre brand / model / size link columns only make sense with the shop enabled.
+  if (!ECOMMERCE_ENABLED) return <FooterSection topSections={[]} />
+
   const supabase = await createClient()
 
   const [brandsRes, patternsRes, sizesRes] = await Promise.all([

@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ECOMMERCE_ENABLED } from "@/lib/features";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -259,8 +261,26 @@ export default function HeroSection() {
             </div>
             <p className="mt-6 max-w-lg text-sm leading-relaxed text-zinc-300 sm:text-base md:text-lg">
               Premium budget and part-worn tyre fitting plus professional car valeting
-              — search by tyre size and get the best deals instantly.
+              {ECOMMERCE_ENABLED
+                ? " — search by tyre size and get the best deals instantly."
+                : " — book online in minutes and we'll confirm your slot."}
             </p>
+            {!ECOMMERCE_ENABLED && (
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/book"
+                  className="inline-flex h-12 items-center rounded-full bg-primary px-8 font-oswald text-lg font-bold italic text-zinc-950 transition-all duration-200 hover:bg-[#c89907] active:scale-[0.97]"
+                >
+                  Book Now
+                </Link>
+                <Link
+                  href="/services"
+                  className="inline-flex h-12 items-center rounded-full border-2 border-white/30 px-8 font-oswald text-lg font-bold italic text-white transition-colors duration-200 hover:border-primary hover:text-primary"
+                >
+                  Our Services
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Stat badges */}
@@ -292,7 +312,8 @@ export default function HeroSection() {
           </motion.div>
         </div>
 
-        {/* ── Search widget ────────────────────────────────────────────────── */}
+        {/* ── Search widget (e-commerce only — searches the tyre shop) ─────── */}
+        {ECOMMERCE_ENABLED && (
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -410,6 +431,7 @@ export default function HeroSection() {
             </motion.div>
           )}
         </motion.div>
+        )}
       </div>
 
       {/* ── Tyre size dialogs ─────────────────────────────────────────────────── */}

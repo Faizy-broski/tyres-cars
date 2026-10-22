@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { ShoppingCart, ImageOff, Mail } from 'lucide-react'
+import { ShoppingCart, ImageOff, Mail, CalendarCheck } from 'lucide-react'
 import type { TyreSku } from '@/lib/supabase/search.types'
 import InquiryModal from '@/components/storefront/InquiryModal'
+import { ECOMMERCE_ENABLED } from '@/lib/features'
 
 export function StockBadge({ stock }: { stock: number }) {
   if (stock === 0) return <span className="text-xs font-semibold text-red-500">Out of stock</span>
@@ -29,7 +30,7 @@ export function DiscountBadge({ original, promo }: { original: number; promo: nu
   return <RibbonBadge tone="discount" label={`-${pct}%`} />
 }
 
-export default function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart: (hit: TyreSku) => void }) {
+export default function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCart?: (hit: TyreSku) => void }) {
   const hasPromo     = hit.promo_price != null && hit.price_inc_gst != null && hit.promo_price < hit.price_inc_gst
   const displayPrice = hasPromo ? hit.promo_price! : hit.price_inc_gst
   const href         = hit.product_slug ? `/tyres/${hit.product_slug}` : `/tyres?brand_id=${hit.brand_id}`
@@ -114,20 +115,22 @@ export default function TyreCard({ hit, onAddToCart }: { hit: TyreSku; onAddToCa
 
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
-          {hit.total_stock === 0 ? (
+          {hit.total_stock === 0 || !ECOMMERCE_ENABLED || !onAddToCart ? (
             <InquiryModal
               productId={hit.product_id}
               sku={hit.sku}
               productName={`${hit.brand_name} ${hit.pattern_name}`}
               tyreSizeDisplay={hit.tyre_size_display}
               productUrl={href}
+              variant={hit.total_stock === 0 ? 'inquiry' : 'booking'}
               trigger={
                 <button
                   type="button"
                   className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
                 >
-                  <Mail className="w-4 h-4" />
-                  Send Inquiry
+                  {hit.total_stock === 0
+                    ? <><Mail className="w-4 h-4" />Send Inquiry</>
+                    : <><CalendarCheck className="w-4 h-4" />Book Now</>}
                 </button>
               }
             />

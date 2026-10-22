@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import Link from "next/link";
 import { Dot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -43,11 +44,11 @@ export default function HelpSection() {
             ))}
           </div>
           <Button
-            type="button"
+            asChild
             aria-label="Get expert help finding tyres"
             className="mt-8 h-12 rounded-full bg-primary px-6 font-oswald text-base font-bold italic text-zinc-950 transition-all duration-200 hover:bg-[#c89907] active:scale-[0.97] sm:px-8 sm:text-xl"
           >
-            Get Expert Help
+            <Link href="/book">Get Expert Help</Link>
           </Button>
         </motion.div>
       </div>

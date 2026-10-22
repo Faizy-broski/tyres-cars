@@ -1,4 +1,4 @@
-import { Search, Truck, CreditCard, Phone, Mail, MessageCircle } from "lucide-react";
+import { Search, CalendarCheck, Wrench, Phone, Mail, MessageCircle } from "lucide-react";
 
 export const vehicleFields = [
   { label: "Make", placeholder: "Select make", options: ["Toyota", "Honda", "BMW", "Audi"] },
@@ -42,9 +42,9 @@ export const tyres = [
 ];
 
 export const steps = [
-  { id: "01", title: "Find the right tire for you", short: "FIND TIRES", desc: "Enter your vehicle year, make, and model or search by tire size to see our top recommendations.", image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1600&auto=format&fit=crop", icon: Search },
-  { id: "02", title: "Delivery Method", short: "DELIVERY METHOD", desc: "Choose delivery or pickup that works best for your schedule and location.", image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop", icon: Truck },
-  { id: "03", title: "Choose Payment", short: "CHOOSE PAYMENT", desc: "Secure checkout with multiple payment methods for a smooth experience.", image: "https://images.unsplash.com/photo-1556740749-887f6717d7e4?q=80&w=1200&auto=format&fit=crop", icon: CreditCard },
+  { id: "01", title: "Choose your service", short: "CHOOSE SERVICE", desc: "Tyre fitting, wheel alignment, balancing, puncture repair or a full car valet — pick what your vehicle needs.", image: "https://images.unsplash.com/photo-1503376780353-7e6692767b70?q=80&w=1600&auto=format&fit=crop", icon: Search },
+  { id: "02", title: "Book a Fitting", short: "BOOK A FITTING", desc: "Pick your tyres and send a booking request with a date that suits your schedule.", image: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=1200&auto=format&fit=crop", icon: CalendarCheck },
+  { id: "03", title: "We Confirm & Fit", short: "WE CONFIRM & FIT", desc: "We confirm your booking and our team gets your tyres fitted, balanced and ready to go.", image: "https://images.unsplash.com/photo-1556740749-887f6717d7e4?q=80&w=1200&auto=format&fit=crop", icon: Wrench },
 ];
 
 export const contactItems = [
@@ -62,10 +62,10 @@ export const faqs = [
 ];
 
 export const reviews = [
-  { name: "Nevin H.", initial: "N", review: "Easy to look up and pay! Very user friendly!" },
+  { name: "Nevin H.", initial: "N", review: "Easy to look up and book! Very user friendly!" },
   { name: "Ryan F.", initial: "R", review: "very easy, like the recommended feature" },
   { name: "Mathew M.", initial: "M", review: "Great website. And a great selection of tires. Best prices around." },
-  { name: "Phillip T.", initial: "P", review: "Great platform and smooth checkout process." },
+  { name: "Phillip T.", initial: "P", review: "Great platform and smooth booking process." },
 ];
 
 // Static fallback for pages that cannot use the async FooterWrapper (e.g. client-only pages)

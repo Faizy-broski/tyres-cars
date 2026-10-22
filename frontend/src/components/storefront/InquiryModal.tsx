@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 
 export default function InquiryModal({
-  productId, sku, productName, tyreSizeDisplay, productUrl, trigger,
+  productId, sku, productName, tyreSizeDisplay, productUrl, trigger, variant = 'inquiry', quantity,
 }: {
   productId: string
   sku: string
@@ -19,13 +19,18 @@ export default function InquiryModal({
   tyreSizeDisplay?: string
   productUrl?: string
   trigger: ReactNode
+  /** 'booking' asks for a preferred fitting date and frames the request as a booking. */
+  variant?: 'booking' | 'inquiry'
+  quantity?: number
 }) {
+  const isBooking = variant === 'booking'
   const [open, setOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [message, setMessage] = useState('')
+  const [date, setDate] = useState('')
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -41,16 +46,18 @@ export default function InquiryModal({
         phone ? `Phone: ${phone}` : null,
         `Product: ${productName || sku} (SKU ${sku})`,
         tyreSizeDisplay ? `Size: ${tyreSizeDisplay}` : null,
+        quantity ? `Quantity: ${quantity}` : null,
+        date ? `Preferred date: ${date}` : null,
         productUrl ? `Link: ${productUrl}` : null,
         message ? `\n${message}` : null,
       ].filter(Boolean).join('\n')
 
-      const subject = encodeURIComponent(`Product inquiry: ${productName || sku}`)
+      const subject = encodeURIComponent(`${isBooking ? 'Booking request' : 'Product inquiry'}: ${productName || sku}`)
       const body    = encodeURIComponent(lines)
       window.location.href = `mailto:support@tyrevault.com.au?subject=${subject}&body=${body}`
 
       toastSuccess('Opening your email app', "Send the message and we'll get back to you shortly.")
-      setName(''); setEmail(''); setPhone(''); setMessage('')
+      setName(''); setEmail(''); setPhone(''); setMessage(''); setDate('')
       setOpen(false)
     } catch (err) {
       console.error('[InquiryModal] submit error', err)
@@ -65,16 +72,18 @@ export default function InquiryModal({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Send an Inquiry</DialogTitle>
+          <DialogTitle>{isBooking ? 'Book a Fitting' : 'Send an Inquiry'}</DialogTitle>
           <DialogDescription>
-            Leave your details and we&apos;ll get back to you about this product shortly.
+            {isBooking
+              ? <>Leave your details and a preferred date &mdash; we&apos;ll confirm your booking shortly.</>
+              : <>Leave your details and we&apos;ll get back to you about this product shortly.</>}
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="rounded-lg bg-zinc-50 border border-zinc-200 px-3 py-2 text-xs text-zinc-600">
             <p className="font-semibold text-zinc-800">{productName || sku}</p>
-            {tyreSizeDisplay && <p>{tyreSizeDisplay} &middot; SKU {sku}</p>}
+            {tyreSizeDisplay && <p>{tyreSizeDisplay} &middot; SKU {sku}{quantity ? <> &middot; Qty {quantity}</> : null}</p>}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -88,9 +97,23 @@ export default function InquiryModal({
             </div>
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="inq-phone">Phone (optional)</Label>
-            <Input id="inq-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+          <div className={isBooking ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : undefined}>
+            <div className="space-y-1">
+              <Label htmlFor="inq-phone">Phone (optional)</Label>
+              <Input id="inq-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} />
+            </div>
+            {isBooking && (
+              <div className="space-y-1">
+                <Label htmlFor="inq-date">Preferred date</Label>
+                <Input
+                  id="inq-date"
+                  type="date"
+                  min={new Date().toISOString().slice(0, 10)}
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                />
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -105,7 +128,7 @@ export default function InquiryModal({
           </div>
 
           <Button type="submit" disabled={submitting} className="w-full">
-            {submitting ? 'Sending…' : 'Send Inquiry'}
+            {submitting ? 'Sending…' : isBooking ? 'Request Booking' : 'Send Inquiry'}
           </Button>
         </form>
       </DialogContent>

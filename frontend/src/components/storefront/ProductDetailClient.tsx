@@ -7,9 +7,10 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ShoppingCart, ChevronLeft, ImageOff, Wrench, Truck, RotateCcw, ShieldCheck, PackageCheck,
-  Clock, HelpCircle, Check, Tag, Hash, Award, Ruler, Gauge, Mail,
+  Clock, HelpCircle, Check, Tag, Hash, Award, Ruler, Gauge, Mail, CalendarCheck,
 } from 'lucide-react'
 import { useCartStore } from '@/stores/cart.store'
+import { ECOMMERCE_ENABLED } from '@/lib/features'
 import ImageMagnifier from '@/components/storefront/ImageMagnifier'
 import ImageLightbox from '@/components/storefront/ImageLightbox'
 import InquiryModal from '@/components/storefront/InquiryModal'
@@ -142,6 +143,11 @@ export default function ProductDetailClient({ product }: { product: Product }) {
   const wasPrice = hasActivePromo ? product.retail_price : hasCompareDiscount ? product.compare_at_price : null
   const nowPrice = hasActivePromo ? product.promo_price   : product.retail_price
   const displayPrice = nowPrice
+
+  const productName = [product.brand_name, product.pattern_name].filter(Boolean).join(' ') || product.sku
+  const productUrl = typeof window !== 'undefined' && product.product_slug
+    ? `${window.location.origin}/tyres/${product.product_slug}`
+    : product.product_slug ? `/tyres/${product.product_slug}` : undefined
 
   async function handleAddToCart() {
     const result = await addItem({
@@ -310,7 +316,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
         {/* Column 3 — Sidebar */}
         <div className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 space-y-3">
-            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">Order Summary</h2>
+            <h2 className="text-sm font-bold text-zinc-900 uppercase tracking-wide">
+              {ECOMMERCE_ENABLED ? 'Order Summary' : 'Book a Fitting'}
+            </h2>
 
             <div>
               <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Quantity</p>
@@ -332,21 +340,50 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             </div>
 
             <div className="flex items-baseline justify-between border-t border-zinc-100 pt-3">
-              <span className="text-sm text-zinc-500">Order Total</span>
+              <span className="text-sm text-zinc-500">{ECOMMERCE_ENABLED ? 'Order Total' : 'Estimated Total'}</span>
               <span className="text-xl font-bold text-primary">
                 {displayPrice != null ? `$${(displayPrice * qty).toLocaleString()}` : '—'}
               </span>
             </div>
 
-            <button
-              type="button"
-              onClick={handleAddToCart}
-              disabled={product.total_available_stock === 0}
-              className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              {product.total_available_stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-            </button>
+            {ECOMMERCE_ENABLED ? (
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={product.total_available_stock === 0}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                {product.total_available_stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              </button>
+            ) : product.total_available_stock === 0 ? (
+              <button
+                type="button"
+                disabled
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-zinc-900 opacity-40 cursor-not-allowed"
+              >
+                Out of Stock
+              </button>
+            ) : (
+              <InquiryModal
+                productId={product.product_id}
+                sku={product.sku}
+                productName={productName}
+                tyreSizeDisplay={product.tyre_size_display}
+                productUrl={productUrl}
+                variant="booking"
+                quantity={qty}
+                trigger={
+                  <button
+                    type="button"
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors"
+                  >
+                    <CalendarCheck className="w-4 h-4" />
+                    Book Now
+                  </button>
+                }
+              />
+            )}
           </div>
 
           <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
@@ -360,11 +397,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
             <InquiryModal
               productId={product.product_id}
               sku={product.sku}
-              productName={[product.brand_name, product.pattern_name].filter(Boolean).join(' ') || product.sku}
+              productName={productName}
               tyreSizeDisplay={product.tyre_size_display}
-              productUrl={typeof window !== 'undefined' && product.product_slug
-                ? `${window.location.origin}/tyres/${product.product_slug}`
-                : product.product_slug ? `/tyres/${product.product_slug}` : undefined}
+              productUrl={productUrl}
               trigger={
                 <button
                   type="button"

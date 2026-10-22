@@ -10,7 +10,8 @@ export default function TopBar() {
           <span>support@tyrevault.com.au</span>
         </div>
         <div className="hidden items-center gap-4 text-sm text-zinc-300 xl:flex">
-          <span>Free shipping on all orders</span>
+          {/* <span>Free shipping on all orders</span>  — e-commerce, disabled */}
+          <span>Tyre fitting &amp; car valeting — book online</span>
           <span className="text-primary">|</span>
           <span>4.8 ★ ShopperApproved rating</span>
         </div>

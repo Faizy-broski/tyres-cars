@@ -1,9 +1,10 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { ShoppingCart, ImageOff, Mail } from "lucide-react";
+import { ShoppingCart, ImageOff, Mail, CalendarCheck } from "lucide-react";
 import { useCartStore } from "@/stores/cart.store";
 import InquiryModal from "@/components/storefront/InquiryModal";
+import { ECOMMERCE_ENABLED } from "@/lib/features";
 
 export interface BestSellerSku {
   product_id:        string;
@@ -107,20 +108,22 @@ export default function TyreCard({ item }: { item: BestSellerSku }) {
 
         {/* Buttons */}
         <div className="flex flex-col gap-1.5 mt-3">
-          {!inStock ? (
+          {!inStock || !ECOMMERCE_ENABLED ? (
             <InquiryModal
               productId={item.product_id}
               sku={item.sku}
               productName={`${item.brand_name} ${item.pattern_name}`}
               tyreSizeDisplay={item.tyre_size_display}
               productUrl={href}
+              variant={inStock ? "booking" : "inquiry"}
               trigger={
                 <button
                   type="button"
                   className="w-full flex items-center justify-center gap-1.5 rounded-lg bg-primary hover:brightness-110 active:scale-95 transition-all duration-150 py-2.5 text-sm font-bold text-zinc-900"
                 >
-                  <Mail className="w-4 h-4" />
-                  Send Inquiry
+                  {inStock
+                    ? <><CalendarCheck className="w-4 h-4" />Book Now</>
+                    : <><Mail className="w-4 h-4" />Send Inquiry</>}
                 </button>
               }
             />

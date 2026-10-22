@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import StorefrontShell from '@/components/storefront/StorefrontShell'
 import FooterSection from '@/components/home/FooterWrapper'
 import CartDrawer from '@/components/storefront/CartDrawer'
+import { ECOMMERCE_ENABLED } from '@/lib/features'
 import { Toaster } from '@/components/ui/sonner'
 import { ReactQueryProvider } from '@/lib/query/client'
 
@@ -13,7 +14,7 @@ export default function StorefrontLayout({ children }: { children: ReactNode }) 
         <ReactQueryProvider>{children}</ReactQueryProvider>
       </main>
       <FooterSection />
-      <CartDrawer />
+      {ECOMMERCE_ENABLED && <CartDrawer />}
       <Toaster
         position="top-center"
         richColors

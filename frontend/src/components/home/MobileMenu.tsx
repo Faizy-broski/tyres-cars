@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Menu, X, ChevronDown, User } from 'lucide-react'
 import type { Session } from '@supabase/supabase-js'
+import { ECOMMERCE_ENABLED } from '@/lib/features'
 
 const TYRE_CATEGORIES = [
   { label: 'Car Tyres',            href: '/tyres?app_type=PCR' },
@@ -81,6 +82,8 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
+          {/* Shop Tyres (e-commerce only) */}
+          {ECOMMERCE_ENABLED && (
           <button
             type="button"
             onClick={() => setTyresOpen(o => !o)}
@@ -89,7 +92,8 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
             Shop Tyres
             <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${tyresOpen ? 'rotate-180 text-primary' : 'text-zinc-500'}`} />
           </button>
-          {tyresOpen && (
+          )}
+          {ECOMMERCE_ENABLED && tyresOpen && (
             <div className="ml-2 mb-1 space-y-0.5 border-l border-white/10 pl-3">
               {TYRE_CATEGORIES.map(({ label, href }) => (
                 <Link
@@ -117,7 +121,17 @@ export default function MobileMenu({ session, onSignOut, onOpenAuth }: Props) {
 
           <div className="my-3 border-t border-white/10" />
 
-          {session ? (
+          {!ECOMMERCE_ENABLED ? (
+            <div className="px-3 pt-1">
+              <Link
+                href="/book"
+                onClick={close}
+                className="block w-full rounded-lg bg-primary py-2.5 text-center text-sm font-semibold text-zinc-900 hover:bg-primary/90 transition-colors"
+              >
+                Book Now
+              </Link>
+            </div>
+          ) : session ? (
             <>
               <p className="flex items-center gap-2 px-3 pb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
                 <User className="h-3.5 w-3.5" /> My Account

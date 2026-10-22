@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Search, ShoppingCart, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCartStore } from "@/stores/cart.store";
+import { ECOMMERCE_ENABLED } from "@/lib/features";
 import { createClient } from "@/lib/supabase/client";
 import type { Session } from "@supabase/supabase-js";
 import TyresDropdown from "./TyresDropdown";
@@ -13,6 +14,7 @@ import GlobalSearchBar from "./GlobalSearchBar";
 import MobileMenu from "./MobileMenu";
 
 const navLinks = [
+  { label: "Services", href: "/services" },
   { label: "About Us", href: "/about" },
   { label: "Contact", href: "/contact" },
 ];
@@ -72,7 +74,8 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
           <div className="flex items-center gap-5 xl:gap-8">
             <MobileMenu session={session} onSignOut={handleSignOut} onOpenAuth={openAuthModal} />
             <nav className="hidden items-center gap-6 xl:flex">
-              {/* Shop Tyres — mega dropdown */}
+              {/* Shop Tyres — mega dropdown (e-commerce only) */}
+              {ECOMMERCE_ENABLED && (
               <div ref={tyresRef} className="relative">
                 <button
                   type="button"
@@ -84,6 +87,7 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                 </button>
                 {tyresOpen && <TyresDropdown onClose={() => setTyresOpen(false)} />}
               </div>
+              )}
 
               {navLinks.map(({ label, href }) => (
                 <Link
@@ -106,6 +110,14 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
 
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-1 xl:flex">
+              {!ECOMMERCE_ENABLED ? (
+                <Link
+                  href="/book"
+                  className="mr-2 whitespace-nowrap rounded-lg bg-primary px-4 py-2 text-xs font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors"
+                >
+                  Book Now
+                </Link>
+              ) : <>
               {/* Auth-aware user area */}
               {!mounted ? (
                 // Fixed-size placeholder prevents layout shift during hydration
@@ -184,12 +196,16 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                   </span>
                 )}
               </button>
+              </>}
             </div>
+            {/* Tyre search (e-commerce only) */}
+            {ECOMMERCE_ENABLED && (
             <div className="relative hidden xl:block">
               <GlobalSearchBar />
             </div>
+            )}
             {/* Mobile/tablet cart */}
-            <button
+            {ECOMMERCE_ENABLED && <button
               type="button"
               onClick={openCart}
               aria-label="Open cart"
@@ -201,7 +217,8 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
                   {count > 99 ? "99+" : count}
                 </span>
               )}
-            </button>
+            </button>}
+            {ECOMMERCE_ENABLED ? (
             <Button
               size="icon"
               variant="ghost"
@@ -211,9 +228,17 @@ export default function Navbar({ topbarScrolled }: { topbarScrolled: boolean }) 
             >
               <Search className="h-5 w-5" />
             </Button>
+            ) : (
+              <Link
+                href="/book"
+                className="whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-zinc-900 hover:bg-primary/90 transition-colors xl:hidden"
+              >
+                Book Now
+              </Link>
+            )}
           </div>
         </div>
-        {mobileSearchOpen && (
+        {ECOMMERCE_ENABLED && mobileSearchOpen && (
           <div className="border-t border-white/10 px-4 py-3 xl:hidden">
             <GlobalSearchBar fullWidth autoFocus />
           </div>

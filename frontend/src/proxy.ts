@@ -1,6 +1,7 @@
 
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { ECOMMERCE_ENABLED, ECOMMERCE_ROUTES } from '@/lib/features'
 
 /**
  * Proxy (Next.js 16 replacement for middleware).
@@ -10,6 +11,15 @@ import { NextResponse, type NextRequest } from 'next/server'
  * not here — doing DB queries per-request in the proxy is too expensive.
  */
 export async function proxy(request: NextRequest) {
+  if (!ECOMMERCE_ENABLED) {
+    const { pathname } = request.nextUrl
+    const hit = ECOMMERCE_ROUTES.find(r => pathname === r || pathname.startsWith(`${r}/`))
+    if (hit) {
+      const target = hit.startsWith('/admin') ? '/admin/products' : '/book'
+      return NextResponse.redirect(new URL(target, request.url))
+    }
+  }
+
   let response = NextResponse.next({ request })
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

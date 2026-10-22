@@ -1,5 +1,5 @@
 "use client";
-import { Disc3, Truck, CarFront } from "lucide-react";
+import { Disc3, CalendarCheck, CarFront } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
@@ -7,7 +7,7 @@ import { scaleIn, slideLeft, stagger, viewport } from "./motion-variants";
 
 const cards = [
   { num: "01", icon: <Disc3 className="h-7 w-7" />, title: ["Massive Tyre", "Selection"], desc: "Browse premium tyres for every vehicle, size, and driving style from trusted global brands.", accent: false },
-  { num: "02", icon: <Truck className="h-7 w-7" />, title: ["Fast &", "Reliable Delivery"], desc: "Get your tyres delivered quickly with secure nationwide shipping and real-time tracking.", accent: false },
+  { num: "02", icon: <CalendarCheck className="h-7 w-7" />, title: ["Easy Online", "Booking"], desc: "Request a fitting or valet in minutes — pick a date and we'll confirm your booking.", accent: false },
   { num: "03", icon: <CarFront className="h-7 w-7" />, title: ["Perfect Vehicle", "Matching"], desc: "Use our smart search to find the right tyres for your exact vehicle in seconds.", accent: true },
 ];
 

@@ -89,10 +89,10 @@ export default function AboutPage() {
               full car valeting services to keep your ride looking its best.
             </p>
             <Link
-              href="/tyres"
+              href="/book"
               className="mt-8 inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-oswald text-lg font-bold italic text-zinc-950 transition-all duration-200 hover:bg-[#c89907]"
             >
-              Shop Tyres
+              Book Now
             </Link>
           </div>
         </div>
@@ -145,14 +145,14 @@ export default function AboutPage() {
               Ready To Get Rolling?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base font-medium text-zinc-900/80 sm:text-lg">
-              Find the perfect tyres for your vehicle or get in touch with our team for expert advice.
+              Book a fitting or valet online, or get in touch with our team for expert advice.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Link
-                href="/tyres"
+                href="/book"
                 className="h-12 rounded-full bg-zinc-950 px-8 font-oswald text-lg font-bold italic text-white transition-all duration-200 hover:bg-zinc-800 flex items-center"
               >
-                Shop Tyres
+                Book Now
               </Link>
               <Link
                 href="/contact"

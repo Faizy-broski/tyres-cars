@@ -5,20 +5,23 @@ import Image from "next/image";
 import TopBar from "@/components/home/TopBar";
 import Navbar from "@/components/home/Navbar";
 import HeroSection from "@/components/home/HeroSection";
-import DealsSection from "@/components/home/DealsSection";
+// E-commerce sections — disabled while the site runs as a simple booking site.
+// import DealsSection from "@/components/home/DealsSection";
 import ServicesSection from "@/components/home/ServicesSection";
 import HelpSection from "@/components/home/HelpSection";
-import VehicleTypesSection from "@/components/home/VehicleTypesSection";
-import TrustedBrandsSection from "@/components/home/TrustedBrandsSection";
-import BestSellingSection from "@/components/home/BestSellingSection";
+// import VehicleTypesSection from "@/components/home/VehicleTypesSection";
+// import TrustedBrandsSection from "@/components/home/TrustedBrandsSection";
+// import BestSellingSection from "@/components/home/BestSellingSection";
 import HowItWorksSection from "@/components/home/HowItWorksSection";
-import ContactSection from "@/components/home/ContactSection";
+// import ContactSection from "@/components/home/ContactSection";  // replaced by BookingSection
+import BookingSection from "@/components/home/BookingSection";
 import FaqSection from "@/components/home/FaqSection";
 import TestimonialsSection from "@/components/home/TestimonialsSection";
 import FooterSection from "@/components/home/FooterSection";
 import CartDrawer from "@/components/storefront/CartDrawer";
+import { ECOMMERCE_ENABLED } from "@/lib/features";
 import { Toaster } from "@/components/ui/sonner";
-import { staticFooterSections } from "@/components/home/data";
+// import { staticFooterSections } from "@/components/home/data";
 
 export default function HomePage() {
   const [topbarScrolled, setTopbarScrolled] = useState(false);
@@ -35,35 +38,39 @@ export default function HomePage() {
       <Navbar topbarScrolled={topbarScrolled} />
       <HeroSection />
 
-      {/* Deals + Services + Help — shared white bg with tyre decoration */}
+      {/* Services + Help — shared white bg with tyre decoration */}
       <div className="relative overflow-hidden">
         <div className="pointer-events-none absolute right-0 top-0 z-0 h-full w-[420px] opacity-[0.06]">
           <Image src="/tyre.svg" alt="" fill priority className="object-contain object-right" />
         </div>
         <div className="relative z-10">
-          <DealsSection />
+          {/* <DealsSection /> */}
           <ServicesSection />
           <HelpSection />
         </div>
       </div>
 
-      {/* Vehicle Types + Trusted Brands + Best Selling — shared leftvector bg */}
+      {/* Vehicle Types + Trusted Brands + Best Selling — disabled (e-commerce)
       <div className="bg-[url('/leftvector.svg')] bg-[position:left_center] bg-no-repeat">
         <VehicleTypesSection />
         <TrustedBrandsSection />
         <BestSellingSection />
       </div>
+      */}
 
-      {/* How It Works + Contact + FAQ — shared rightvector bg */}
+      {/* How It Works + Booking + FAQ — shared rightvector bg */}
       <div className="bg-[url('/rightvector.svg')] bg-[position:right_center] bg-no-repeat">
         <HowItWorksSection />
-        <ContactSection />
+        {/* <ContactSection /> */}
+        <BookingSection />
         <FaqSection />
       </div>
 
       <TestimonialsSection />
-      <FooterSection topSections={staticFooterSections} />
-      <CartDrawer />
+      {/* Tyre brand / model / size link columns disabled (e-commerce):
+      <FooterSection topSections={staticFooterSections} /> */}
+      <FooterSection topSections={[]} />
+      {ECOMMERCE_ENABLED && <CartDrawer />}
       <Toaster
         position="top-center"
         richColors
@@ -83,4 +90,3 @@ export default function HomePage() {
     </main>
   );
 }
-

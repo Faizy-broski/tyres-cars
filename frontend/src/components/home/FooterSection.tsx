@@ -85,7 +85,8 @@ export default function FooterSection({ topSections }: Props) {
       <div className="absolute inset-0 bg-gradient-to-b from-zinc-950 via-zinc-900 to-black pointer-events-none" />
 
       <div className="relative z-10 mx-auto max-w-[1400px] px-4 py-12 sm:px-6 sm:py-14 lg:px-10">
-        <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm sm:p-8">
+        {topSections.length > 0 && (
+        <div className="mb-12 rounded-[28px] border border-white/10 bg-white/[0.03] p-5 backdrop-blur-sm sm:p-8 lg:mb-16">
           <div className="grid grid-cols-2 gap-6 sm:gap-8 md:grid-cols-3 xl:grid-cols-5">
             {topSections.map((section) => (
               <div key={section.title}>
@@ -116,9 +117,10 @@ export default function FooterSection({ topSections }: Props) {
             ))}
           </div>
         </div>
+        )}
 
         <motion.div
-          className="mt-12 grid gap-10 sm:grid-cols-2 sm:gap-12 lg:mt-16 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:gap-16"
+          className="grid gap-10 sm:grid-cols-2 sm:gap-12 lg:grid-cols-[1.3fr_1fr_1fr_1fr] lg:gap-16"
           initial="hidden"
           whileInView="visible"
           viewport={viewport}
